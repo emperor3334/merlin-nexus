@@ -109,7 +109,6 @@ export function useMerlinAgent() {
         speak(reply);
       } finally {
         setTyping(false);
-        setTimeout(() => setOrbState((s) => s), 50);
       }
     },
     [addMessage, backendMode, log, messages, setChannel, setOrbState, setTyping, speak, userName]
