@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 export type OrbState = "standby" | "thinking" | "listening" | "speaking";
+export type ContentType = "map" | "video" | "chart" | "search" | "image" | "text" | null;
 
 export interface Message {
   id: string;
@@ -10,73 +11,57 @@ export interface Message {
   timestamp: Date;
 }
 
-export interface SearchResult {
-  title: string;
-  url: string;
-  snippet: string;
+export interface ActiveContent {
+  type: ContentType;
+  data?: any;
+}
+
+export interface LogEntry {
+  time: string;
+  text: string;
 }
 
 interface MerlinState {
-  backendMode: boolean;
-  apiKey: string;
+  backendOnline: boolean;
   userName: string;
   orbState: OrbState;
+  activeContent: ActiveContent;
   messages: Message[];
   isTyping: boolean;
-  currentChannel: string | null;
-  videoUrl: string | null;
-  conversationCount: number;
-  searchCount: number;
-  cpuPercent: number;
-  uptime: number;
-  searchResults: SearchResult[];
-  showSearchResults: boolean;
-  cameraOpen: boolean;
-  activityLog: string[];
+  micActive: boolean;
+  bootDone: boolean;
+  activityLog: LogEntry[];
+  setBackendOnline: (b: boolean) => void;
   setOrbState: (s: OrbState) => void;
+  setContent: (c: ActiveContent) => void;
+  clearContent: () => void;
   addMessage: (m: Message) => void;
   setTyping: (t: boolean) => void;
-  setChannel: (id: string | null, url: string | null) => void;
-  setSearchResults: (r: SearchResult[], show: boolean) => void;
-  setCameraOpen: (o: boolean) => void;
-  log: (s: string) => void;
-  tick: () => void;
-  setBackendMode: (b: boolean) => void;
+  setMicActive: (a: boolean) => void;
+  setBootDone: (b: boolean) => void;
+  log: (text: string) => void;
 }
 
+const ts = () => new Date().toLocaleTimeString("cs-CZ", { hour12: false });
+
 export const useMerlin = create<MerlinState>((set) => ({
-  backendMode: false,
-  apiKey: "",
+  backendOnline: false,
   userName: "OPERATOR",
   orbState: "standby",
+  activeContent: { type: null },
   messages: [],
   isTyping: false,
-  currentChannel: null,
-  videoUrl: null,
-  conversationCount: 0,
-  searchCount: 0,
-  cpuPercent: 12,
-  uptime: 0,
-  searchResults: [],
-  showSearchResults: false,
-  cameraOpen: false,
-  activityLog: ["SYSTEM INIT", "LOADING CORE", "MERLIN ONLINE"],
+  micActive: false,
+  bootDone: false,
+  activityLog: [],
+  setBackendOnline: (b) => set({ backendOnline: b }),
   setOrbState: (s) => set({ orbState: s }),
-  addMessage: (m) =>
-    set((st) => ({
-      messages: [...st.messages, m],
-      conversationCount: m.role === "merlin" ? st.conversationCount + 1 : st.conversationCount,
-    })),
+  setContent: (c) => set({ activeContent: c }),
+  clearContent: () => set({ activeContent: { type: null } }),
+  addMessage: (m) => set((st) => ({ messages: [...st.messages, m] })),
   setTyping: (t) => set({ isTyping: t }),
-  setChannel: (id, url) => set({ currentChannel: id, videoUrl: url }),
-  setSearchResults: (r, show) =>
-    set((st) => ({ searchResults: r, showSearchResults: show, searchCount: st.searchCount + (show ? 1 : 0) })),
-  setCameraOpen: (o) => set({ cameraOpen: o }),
-  log: (s) => set((st) => ({ activityLog: [s, ...st.activityLog].slice(0, 20) })),
-  tick: () =>
-    set((st) => ({
-      uptime: st.uptime + 1,
-      cpuPercent: Math.max(5, Math.min(95, st.cpuPercent + (Math.random() - 0.5) * 10)),
-    })),
-  setBackendMode: (b) => set({ backendMode: b }),
+  setMicActive: (a) => set({ micActive: a }),
+  setBootDone: (b) => set({ bootDone: b }),
+  log: (text) =>
+    set((st) => ({ activityLog: [{ time: ts(), text }, ...st.activityLog].slice(0, 8) })),
 }));

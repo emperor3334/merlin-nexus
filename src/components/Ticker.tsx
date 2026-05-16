@@ -1,39 +1,56 @@
-const tickerData = [
-  { sym: "BTC", val: "$67,420", chg: "+2.4%", up: true },
-  { sym: "ETH", val: "$3,210", chg: "+1.8%", up: true },
-  { sym: "S&P500", val: "5,241", chg: "-0.3%", up: false },
-  { sym: "NASDAQ", val: "18,330", chg: "+0.9%", up: true },
-  { sym: "EUR/CZK", val: "25.42", chg: "-0.1%", up: false },
-  { sym: "USD/CZK", val: "23.18", chg: "+0.2%", up: true },
-  { sym: "GOLD", val: "$2,380", chg: "+0.6%", up: true },
-  { sym: "NVIDIA", val: "$875", chg: "+5.2%", up: true },
-  { sym: "TSLA", val: "$248", chg: "+3.1%", up: true },
-  { sym: "AAPL", val: "$192", chg: "+0.4%", up: true },
+import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { useMerlin } from "@/store/merlinStore";
+
+const ITEMS = [
+  { sym: "BTC", val: "67,420", chg: "+1.42%" },
+  { sym: "ETH", val: "3,512", chg: "+0.88%" },
+  { sym: "EUR/USD", val: "1.0892", chg: "-0.12%" },
+  { sym: "GOLD", val: "2,418", chg: "+0.34%" },
+  { sym: "S&P500", val: "5,621", chg: "+0.55%" },
+  { sym: "DXY", val: "104.82", chg: "-0.21%" },
+  { sym: "OIL", val: "78.21", chg: "+1.04%" },
 ];
 
 export const Ticker = () => {
-  const items = [...tickerData, ...tickerData];
+  const hasContent = useMerlin((s) => s.activeContent.type !== null);
+  const [time, setTime] = useState<string | null>(null);
+  useEffect(() => {
+    const tick = () => setTime(new Date().toLocaleTimeString("cs-CZ", { hour12: false }));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (!hasContent) return null;
+
   return (
-    <div className="h-10 border-b border-[var(--merlin-border)] bg-[var(--merlin-panel)] flex items-center overflow-hidden relative">
-      <div className="bg-[var(--merlin-danger)] text-white font-orbitron text-[10px] tracking-[3px] px-3 py-1 mx-2 flex-shrink-0 z-10 shadow-[0_0_15px_rgba(255,60,90,0.5)]">
-        ● LIVE
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="absolute top-0 left-0 right-0 h-9 z-30 border-b border-[var(--border)] flex items-center"
+      style={{ background: "rgba(2,6,18,0.92)", backdropFilter: "blur(6px)" }}
+    >
+      <div className="px-3 font-orbitron text-[9px] tracking-[3px] text-[var(--cyan)] shrink-0">
+        MERLIN // {time ?? "--:--:--"}
       </div>
       <div className="flex-1 overflow-hidden relative">
         <div
-          className="flex gap-8 whitespace-nowrap"
-          style={{ animation: "ticker-move 60s linear infinite", width: "max-content" }}
+          className="flex gap-8 whitespace-nowrap font-mono text-[11px]"
+          style={{ animation: "ticker-scroll 60s linear infinite" }}
         >
-          {items.map((it, i) => (
-            <div key={i} className="flex items-center gap-2 font-orbitron text-[10px] tracking-wider">
-              <span className="text-[var(--merlin-text-bright)]">{it.sym}</span>
-              <span className="text-[var(--merlin-text)]">{it.val}</span>
-              <span style={{ color: it.up ? "var(--merlin-success)" : "var(--merlin-danger)" }}>
+          {[...ITEMS, ...ITEMS, ...ITEMS].map((it, i) => (
+            <span key={i} className="flex items-center gap-2">
+              <span className="text-[var(--cyan)]">{it.sym}</span>
+              <span className="text-[var(--text-bright)]">{it.val}</span>
+              <span style={{ color: it.chg.startsWith("+") ? "var(--success)" : "var(--danger)" }}>
                 {it.chg}
               </span>
-            </div>
+            </span>
           ))}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };

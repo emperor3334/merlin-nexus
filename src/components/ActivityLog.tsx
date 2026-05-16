@@ -1,20 +1,24 @@
+import { AnimatePresence, motion } from "framer-motion";
 import { useMerlin } from "@/store/merlinStore";
 
 export const ActivityLog = () => {
   const log = useMerlin((s) => s.activityLog);
   return (
-    <div className="border-t border-[var(--merlin-border)] p-2 max-h-[120px] overflow-hidden">
-      <div className="font-orbitron text-[8px] tracking-[3px] text-[var(--merlin-primary)] mb-1">
-        // ACTIVITY
-      </div>
-      <div className="space-y-0.5 font-orbitron text-[8px] tracking-wider opacity-70">
-        {log.slice(0, 6).map((l, i) => (
-          <div key={i} className="flex gap-2">
-            <span className="text-[var(--merlin-success)]">›</span>
-            <span>{l}</span>
-          </div>
+    <div className="absolute bottom-[90px] right-4 md:right-6 w-[260px] z-20 pointer-events-none space-y-0.5">
+      <AnimatePresence>
+        {log.slice(0, 5).map((l) => (
+          <motion.div
+            key={`${l.time}-${l.text}`}
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 0.55, x: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="font-mono text-[9px] text-[var(--text)] tracking-wide text-right"
+          >
+            <span className="text-[var(--cyan)] opacity-70">{l.time}</span> › {l.text}
+          </motion.div>
         ))}
-      </div>
+      </AnimatePresence>
     </div>
   );
 };

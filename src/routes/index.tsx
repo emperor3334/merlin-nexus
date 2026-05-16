@@ -1,18 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Ticker } from "@/components/Ticker";
-import { Orb } from "@/components/Orb";
-import { MicButton } from "@/components/MicButton";
-import { VideoPanel } from "@/components/VideoPanel";
-import { ChatPanel } from "@/components/ChatPanel";
-import { Chart } from "@/components/Chart";
-import { Footer } from "@/components/Footer";
-import { CornerDeco } from "@/components/CornerDeco";
+import { AnimatePresence } from "framer-motion";
 import { Cursor } from "@/components/Cursor";
-import { MapBackground } from "@/components/MapBackground";
+import { GridBackground } from "@/components/Background/GridBackground";
+import { Particles } from "@/components/Background/Particles";
+import { Orb } from "@/components/Orb/Orb";
+import { ContentPanel } from "@/components/DynamicContent/ContentPanel";
+import { ChatPanel } from "@/components/Chat/ChatPanel";
+import { InputBar } from "@/components/Chat/InputBar";
+import { Ticker } from "@/components/Ticker";
 import { ActivityLog } from "@/components/ActivityLog";
-import { CameraOverlay } from "@/components/CameraOverlay";
-import { SearchResults } from "@/components/SearchResults";
+import { BootSequence } from "@/components/BootSequence";
 import { useMerlin } from "@/store/merlinStore";
 import { MerlinAPI } from "@/api/merlin-api";
 
@@ -20,52 +18,51 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "MERLIN — Osobní AI Asistent" },
-      { name: "description", content: "MERLIN v2.0-BETA — sci-fi AI command interface inspirovaný JARVISem." },
+      { name: "description", content: "MERLIN v2.0 — hlasově ovládaný sci-fi AI asistent inspirovaný JARVISem." },
     ],
   }),
   component: Index,
 });
 
 function Index() {
-  const { setBackendMode, tick, log } = useMerlin();
+  const bootDone = useMerlin((s) => s.bootDone);
+  const hasContent = useMerlin((s) => s.activeContent.type !== null);
 
   useEffect(() => {
+    const { setBackendOnline, log } = useMerlin.getState();
     MerlinAPI.status()
-      .then(() => { setBackendMode(true); log("BACKEND ONLINE"); })
-      .catch(() => { setBackendMode(false); log("BACKEND OFFLINE — SIM MODE"); });
-  }, [setBackendMode, log]);
-
-  useEffect(() => {
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [tick]);
+      .then(() => { setBackendOnline(true); log("BACKEND ONLINE"); })
+      .catch(() => { setBackendOnline(false); log("BACKEND OFFLINE — SIM"); });
+  }, []);
 
   return (
-    <div className="h-screen w-screen flex flex-col relative overflow-hidden">
-      <MapBackground />
+    <div className="h-screen w-screen relative overflow-hidden" style={{ background: "var(--bg)" }}>
+      <GridBackground />
+      <Particles />
       <div className="scanlines" />
       <div className="vignette" />
       <div className="scanline-anim" />
       <Cursor />
 
-      <div className="relative z-10 flex flex-col h-full">
-        <Ticker />
-        <div className="flex-1 flex min-h-0">
-          <VideoPanel />
-          <div className="w-[320px] m-2 ml-0 merlin-panel flex flex-col min-h-0">
-            <CornerDeco />
-            <Orb />
-            <MicButton />
-            <ChatPanel />
-            <ActivityLog />
-          </div>
-        </div>
-        <Chart />
-        <Footer />
+      <AnimatePresence>{!bootDone && <BootSequence />}</AnimatePresence>
+
+      <Ticker />
+      <ContentPanel />
+      <ChatPanel />
+
+      <div
+        className="absolute z-20 transition-all duration-700 ease-out pointer-events-none"
+        style={
+          hasContent
+            ? { right: 60, top: 80, transform: "scale(0.7)" }
+            : { left: "50%", top: "50%", transform: "translate(-50%, -50%)" }
+        }
+      >
+        <Orb />
       </div>
 
-      <SearchResults />
-      <CameraOverlay />
+      <ActivityLog />
+      <InputBar />
     </div>
   );
 }
