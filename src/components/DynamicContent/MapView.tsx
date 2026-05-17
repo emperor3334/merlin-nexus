@@ -43,14 +43,27 @@ export const MapView = ({ data }: { data: { lat: number; lng: number; zoom?: num
 
   return (
     <div className="relative w-full h-full">
-      <div ref={ref} className="w-full h-full" style={{ filter: "saturate(1.4) hue-rotate(-5deg)" }} />
+      <div
+        ref={ref}
+        className="w-full h-full"
+        style={{
+          filter: "saturate(1.4) hue-rotate(-5deg)",
+          WebkitMaskImage:
+            "radial-gradient(ellipse at center, black 55%, transparent 100%)",
+          maskImage:
+            "radial-gradient(ellipse at center, black 55%, transparent 100%)",
+        }}
+      />
       <div
         className="pointer-events-none absolute inset-0"
-        style={{ boxShadow: "inset 0 0 120px 20px rgba(3,9,18,0.95)" }}
+        style={{ boxShadow: "inset 0 0 200px 40px rgba(3,9,18,1)" }}
       />
       {data.label && (
-        <div className="absolute top-3 left-3 font-orbitron text-[10px] tracking-[3px] text-[var(--text-bright)] bg-[var(--panel-bg)] px-3 py-1 border border-[var(--border)]">
-          ◉ {data.label}
+        <div
+          className="absolute top-12 left-6 font-orbitron text-[11px] tracking-[4px]"
+          style={{ color: "#c8e8ff", textShadow: "0 0 12px rgba(0,200,255,0.6)" }}
+        >
+          ◉ {data.label.toUpperCase()}
         </div>
       )}
     </div>

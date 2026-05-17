@@ -16,37 +16,33 @@ export const Ticker = () => {
   const hasContent = useMerlin((s) => s.activeContent.type !== null);
   const [time, setTime] = useState<string | null>(null);
   useEffect(() => {
-    const tick = () => setTime(new Date().toLocaleTimeString("cs-CZ", { hour12: false }));
+    const tick = () => setTime(new Date().toLocaleTimeString("en-GB", { hour12: false }));
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
-
   if (!hasContent) return null;
-
   return (
     <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="absolute top-0 left-0 right-0 h-9 z-30 border-b border-[var(--border)] flex items-center"
-      style={{ background: "rgba(2,6,18,0.92)", backdropFilter: "blur(6px)" }}
+      className="fixed top-0 left-0 right-0 z-30 flex items-center"
+      style={{ height: 32, background: "rgba(1,4,12,0.9)" }}
     >
-      <div className="px-3 font-orbitron text-[9px] tracking-[3px] text-[var(--cyan)] shrink-0">
+      <div className="px-4 font-orbitron text-[9px] tracking-[3px] shrink-0" style={{ color: "rgba(0,200,255,0.7)" }}>
         MERLIN // {time ?? "--:--:--"}
       </div>
       <div className="flex-1 overflow-hidden relative">
         <div
-          className="flex gap-8 whitespace-nowrap font-mono text-[11px]"
-          style={{ animation: "ticker-scroll 60s linear infinite" }}
+          className="flex gap-10 whitespace-nowrap font-mono text-[10px]"
+          style={{ animation: "ticker-scroll 55s linear infinite", letterSpacing: "0.5px" }}
         >
           {[...ITEMS, ...ITEMS, ...ITEMS].map((it, i) => (
             <span key={i} className="flex items-center gap-2">
-              <span className="text-[var(--cyan)]">{it.sym}</span>
+              <span style={{ color: "rgba(0,200,255,0.9)" }}>{it.sym}</span>
               <span className="text-[var(--text-bright)]">{it.val}</span>
-              <span style={{ color: it.chg.startsWith("+") ? "var(--success)" : "var(--danger)" }}>
-                {it.chg}
-              </span>
+              <span style={{ color: it.chg.startsWith("+") ? "#00ffaa" : "#ff4466" }}>{it.chg}</span>
             </span>
           ))}
         </div>

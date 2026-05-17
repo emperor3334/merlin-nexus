@@ -122,16 +122,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle, rgba(0,140,255,0.5), rgba(0,60,200,0.12) 60%, transparent 80%);
+  background: radial-gradient(
+    circle,
+    rgba(100,200,255,0.45) 0%,
+    rgba(0,120,255,0.25) 40%,
+    rgba(0,60,200,0.1) 70%,
+    transparent 100%
+  );
   box-shadow:
-    0 0 40px rgba(0,140,255,0.55),
-    0 0 80px rgba(0,100,255,0.25),
+    0 0 30px rgba(0,160,255,0.6),
+    0 0 60px rgba(0,100,255,0.3),
+    0 0 100px rgba(0,80,255,0.15),
     inset 0 0 20px rgba(0,200,255,0.35);
   font-family: 'Orbitron', sans-serif;
   font-weight: 800;
-  font-size: 10px;
-  letter-spacing: 3px;
-  color: var(--text-bright);
+  letter-spacing: 4px;
+  color: #ffffff;
+  text-shadow: 0 0 20px rgba(0,200,255,1), 0 0 40px rgba(0,200,255,0.5);
   animation: orb-pulse 3s ease-in-out infinite;
 }
 .orb-thinking .orb-core { animation: orb-pulse 0.6s ease-in-out infinite; }
@@ -154,6 +161,10 @@
 @keyframes orb-pulse { 0%,100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.06); opacity: 1; } }
 @keyframes ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-33.333%); } }
 @keyframes mic-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(0,255,170,0.5); } 50% { box-shadow: 0 0 0 8px rgba(0,255,170,0); } }
+@keyframes mic-fill-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
 @keyframes scan { 0% { transform: translateY(-100%); } 100% { transform: translateY(100vh); } }
 @keyframes dot-pulse { 0%,100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
 

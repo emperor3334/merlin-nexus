@@ -29,6 +29,8 @@ interface MerlinState {
   messages: Message[];
   isTyping: boolean;
   micActive: boolean;
+  micFilled: boolean;
+  sessionActive: boolean;
   bootDone: boolean;
   activityLog: LogEntry[];
   setBackendOnline: (b: boolean) => void;
@@ -38,6 +40,8 @@ interface MerlinState {
   addMessage: (m: Message) => void;
   setTyping: (t: boolean) => void;
   setMicActive: (a: boolean) => void;
+  setMicFilled: (a: boolean) => void;
+  setSessionActive: (a: boolean) => void;
   setBootDone: (b: boolean) => void;
   log: (text: string) => void;
 }
@@ -52,6 +56,8 @@ export const useMerlin = create<MerlinState>((set) => ({
   messages: [],
   isTyping: false,
   micActive: false,
+  micFilled: false,
+  sessionActive: false,
   bootDone: false,
   activityLog: [],
   setBackendOnline: (b) => set({ backendOnline: b }),
@@ -61,6 +67,8 @@ export const useMerlin = create<MerlinState>((set) => ({
   addMessage: (m) => set((st) => ({ messages: [...st.messages, m] })),
   setTyping: (t) => set({ isTyping: t }),
   setMicActive: (a) => set({ micActive: a }),
+  setMicFilled: (a) => set({ micFilled: a }),
+  setSessionActive: (a) => set({ sessionActive: a }),
   setBootDone: (b) => set({ bootDone: b }),
   log: (text) =>
     set((st) => ({ activityLog: [{ time: ts(), text }, ...st.activityLog].slice(0, 8) })),
