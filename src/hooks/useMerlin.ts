@@ -59,26 +59,33 @@ async function tryVoiceCommand(text: string): Promise<boolean> {
   return false;
 }
 
+function parseOpenUrl(text: string): { url: string; rest: string } | null {
+  const m = text.match(/^\s*\[OPEN:([^\]]+)\]\s*([\s\S]*)$/);
+  if (m) return { url: m[1].trim(), rest: m[2].trim() };
+  return null;
+}
+
 async function detectContent(userQuery: string, aiResponse: string) {
   const lo = userQuery.toLowerCase();
 
   if (/\bmap\b|where is|fly to|show me .*?(city|country|place)|mapu|mapa|kde je|ukáž místo|jdi na|leť na/.test(lo)) {
     const place = extractLocation(userQuery) || "Prague";
     const coords = await geocode(place);
-    if (coords) return { type: "map" as const, data: { ...coords, zoom: 12, label: place } };
+    if (coords) return { type: "map" as const, data: { ...coords, zoom: 12, label: place }, title: place };
   }
 
   if (/youtube|video|play video|pusť video|spusť video/.test(lo)) {
     const yt = extractYouTube(aiResponse) || extractYouTube(userQuery);
-    if (yt) return { type: "video" as const, data: { url: yt } };
+    if (yt) return { type: "video" as const, data: { url: yt }, url: yt, title: "YouTube" };
   }
 
   if (/chart|graph|price|rate|btc|ethereum|bitcoin|graf|kurz|cena/.test(lo)) {
-    return { type: "chart" as const, data: { symbol: extractSymbol(userQuery) } };
+    const sym = extractSymbol(userQuery);
+    return { type: "chart" as const, data: { symbol: sym }, title: `${sym}/USD` };
   }
 
   if (aiResponse.length > 220) {
-    return { type: "text" as const, data: { content: aiResponse } };
+    return { type: "text" as const, data: { content: aiResponse }, title: "MERLIN" };
   }
 
   return null;
@@ -155,21 +162,39 @@ export function useMerlinAgent() {
         useMerlin.getState().setTyping(false);
       }
 
+      // Detect [OPEN:url] prefix from AI and open in window
+      const open = parseOpenUrl(reply);
+      const cleanReply = open ? open.rest || "Opening." : reply;
+
       useMerlin.getState().addMessage({
         id: crypto.randomUUID(),
         role: "merlin",
-        text: reply,
+        text: cleanReply,
         badge,
         timestamp: new Date(),
       });
 
-      const content = await detectContent(text, reply);
-      if (content) {
-        useMerlin.getState().setContent(content);
-        useMerlin.getState().log(`CONTENT: ${content.type.toUpperCase()}`);
+      if (open) {
+        const isYt = /youtube\.com|youtu\.be/.test(open.url);
+        const url = isYt && !/embed/.test(open.url)
+          ? open.url.replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/")
+          : open.url;
+        useMerlin.getState().setContent({
+          type: isYt ? "video" : "web",
+          data: { url },
+          url,
+          title: isYt ? "YouTube" : open.url,
+        });
+        useMerlin.getState().log(`OPEN: ${open.url.slice(0, 36)}`);
+      } else {
+        const content = await detectContent(text, reply);
+        if (content) {
+          useMerlin.getState().setContent(content);
+          useMerlin.getState().log(`CONTENT: ${content.type.toUpperCase()}`);
+        }
       }
 
-      speak(reply);
+      speak(cleanReply);
     },
     [speak]
   );

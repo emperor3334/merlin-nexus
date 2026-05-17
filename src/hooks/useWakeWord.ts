@@ -50,6 +50,7 @@ export function useWakeWord() {
           st.setSessionActive(true);
           st.setMicFilled(true);
           st.setOrbState("listening");
+          st.triggerWakeFlash();
           st.log("WAKE WORD DETECTED");
           const command = t.replace(/^.*?merlin[,.\s]*/i, "").trim();
           if (command) sendRef.current(command);
