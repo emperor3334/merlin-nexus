@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { useMerlin } from "@/store/merlinStore";
 import { MerlinAPI } from "@/api/merlin-api";
 
-const SEARCH_KW = ["vyhledej", "najdi", "zjisti", "google"];
+const SEARCH_KW = ["search", "find", "google", "look up", "vyhledej", "najdi"];
 
 async function geocode(name: string): Promise<{ lat: number; lng: number } | null> {
   try {
@@ -17,7 +17,7 @@ async function geocode(name: string): Promise<{ lat: number; lng: number } | nul
 }
 
 function extractLocation(text: string): string | null {
-  const m = text.match(/(?:mapu?|kde je|ukáž|ukaž|jdi na|leť na|fly to)\s+([\p{L}\s]+?)(?:[.,?!]|$)/iu);
+  const m = text.match(/(?:map of|show me|where is|fly to|go to|mapu?|kde je|ukáž|ukaž|jdi na|leť na)\s+([\p{L}\s]+?)(?:[.,?!]|$)/iu);
   return m ? m[1].trim() : null;
 }
 
@@ -43,13 +43,17 @@ async function tryVoiceCommand(text: string): Promise<boolean> {
     st.clearContent();
     return true;
   }
+  if (/^(close|hide|dismiss|exit)\b/.test(lo)) {
+    st.clearContent();
+    return true;
+  }
 
   const map = (window as any).__merlinMap;
   if (map) {
     if (/přibliž|zoom in/.test(lo)) { map.zoomIn(); return true; }
     if (/oddal|zoom out/.test(lo)) { map.zoomOut(); return true; }
-    if (/scroll.+dolů|posuň.+dolů/.test(lo)) { map.panBy([0, 300]); return true; }
-    if (/scroll.+nahoru|posuň.+nahoru/.test(lo)) { map.panBy([0, -300]); return true; }
+    if (/scroll down|pan down/.test(lo)) { map.panBy([0, 300]); return true; }
+    if (/scroll up|pan up/.test(lo)) { map.panBy([0, -300]); return true; }
   }
 
   return false;
@@ -58,18 +62,18 @@ async function tryVoiceCommand(text: string): Promise<boolean> {
 async function detectContent(userQuery: string, aiResponse: string) {
   const lo = userQuery.toLowerCase();
 
-  if (/mapu|mapa|kde je|ukáž místo|jdi na|leť na/.test(lo)) {
-    const place = extractLocation(userQuery) || "Praha";
+  if (/\bmap\b|where is|fly to|show me .*?(city|country|place)|mapu|mapa|kde je|ukáž místo|jdi na|leť na/.test(lo)) {
+    const place = extractLocation(userQuery) || "Prague";
     const coords = await geocode(place);
     if (coords) return { type: "map" as const, data: { ...coords, zoom: 12, label: place } };
   }
 
-  if (/youtube|video|pusť video|spusť video/.test(lo)) {
+  if (/youtube|video|play video|pusť video|spusť video/.test(lo)) {
     const yt = extractYouTube(aiResponse) || extractYouTube(userQuery);
     if (yt) return { type: "video" as const, data: { url: yt } };
   }
 
-  if (/graf|kurz|cena|btc|ethereum|bitcoin/.test(lo)) {
+  if (/chart|graph|price|rate|btc|ethereum|bitcoin|graf|kurz|cena/.test(lo)) {
     return { type: "chart" as const, data: { symbol: extractSymbol(userQuery) } };
   }
 
@@ -101,7 +105,7 @@ export function useMerlinAgent() {
     } catch {}
     try {
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = "cs-CZ";
+      u.lang = "en-US";
       u.rate = 1.05;
       u.onend = () => useMerlin.getState().setOrbState("standby");
       window.speechSynthesis.speak(u);
@@ -145,7 +149,7 @@ export function useMerlinAgent() {
           badge = "[OFFLINE→SIM]";
         }
       } catch (e: any) {
-        reply = `Spojení s backendem selhalo. (${e?.message ?? "error"})`;
+        reply = `Backend connection failed. (${e?.message ?? "error"})`;
         badge = "[OFFLINE]";
       } finally {
         useMerlin.getState().setTyping(false);
@@ -175,11 +179,12 @@ export function useMerlinAgent() {
 
 function simulateReply(text: string): string {
   const lo = text.toLowerCase();
-  if (lo.includes("ahoj") || lo.includes("dobr")) return "Zdravím, operátore. Všechny systémy online.";
-  if (lo.includes("kdo jsi")) return "Jsem MERLIN — váš osobní AI asistent.";
-  if (lo.includes("mapu") || lo.includes("mapa")) return "Zobrazuji požadovanou lokaci.";
-  if (lo.includes("graf") || lo.includes("btc")) return "Zobrazuji požadovaný graf.";
-  if (lo.includes("čas") || lo.includes("hodin"))
-    return `Systémový čas: ${new Date().toLocaleTimeString("cs-CZ")}.`;
-  return "Backend offline — pracuji v simulovaném režimu. Spusťte app.py pro plnou funkčnost.";
+  if (lo.includes("hello") || lo.includes("hi ") || lo.includes("hey"))
+    return "Greetings, operator. All systems online.";
+  if (lo.includes("who are you")) return "I am MERLIN — your personal AI assistant.";
+  if (lo.includes("map")) return "Displaying the requested location.";
+  if (lo.includes("chart") || lo.includes("btc")) return "Rendering the requested chart.";
+  if (lo.includes("time"))
+    return `System time: ${new Date().toLocaleTimeString("en-US")}.`;
+  return "Backend offline — running in simulation mode. Start app.py for full functionality.";
 }
