@@ -1,6 +1,5 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import { useMerlin } from "@/store/merlinStore";
 
 const ITEMS = [
   { sym: "BTC", val: "67,420", chg: "+1.42%" },
