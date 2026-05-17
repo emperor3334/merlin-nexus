@@ -1,6 +1,5 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import { useMerlin } from "@/store/merlinStore";
 
 const ITEMS = [
   { sym: "BTC", val: "67,420", chg: "+1.42%" },
@@ -13,7 +12,6 @@ const ITEMS = [
 ];
 
 export const Ticker = () => {
-  const hasContent = useMerlin((s) => s.activeContent.type !== null);
   const [time, setTime] = useState<string | null>(null);
   useEffect(() => {
     const tick = () => setTime(new Date().toLocaleTimeString("en-GB", { hour12: false }));
@@ -21,7 +19,6 @@ export const Ticker = () => {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
-  if (!hasContent) return null;
   return (
     <motion.div
       initial={{ opacity: 0, y: -20 }}

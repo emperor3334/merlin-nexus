@@ -226,28 +226,53 @@
 .corner-bracket.bl { bottom: 0; left: 0; border-bottom: 1px solid var(--cyan); border-left: 1px solid var(--cyan); }
 .corner-bracket.br { bottom: 0; right: 0; border-bottom: 1px solid var(--cyan); border-right: 1px solid var(--cyan); }
 
-/* ===== CURSOR ===== */
-.cursor-ring, .cursor-dot {
+/* ===== CROSSHAIR CURSOR ===== */
+.cursor-cross, .cursor-dot {
   position: fixed;
   pointer-events: none;
   z-index: 9999;
+  top: 0;
+  left: 0;
+}
+.cursor-cross {
+  width: 20px;
+  height: 20px;
+  transform: translate(-50%, -50%);
+  transition: transform 0.12s ease-out;
+  mix-blend-mode: screen;
+}
+.cross-line {
+  position: absolute;
+  background: var(--cyan);
+  box-shadow: 0 0 6px rgba(0,200,255,0.6);
+}
+.cross-top    { top: 0;    left: 50%; width: 1px; height: 7px;  transform: translateX(-50%); }
+.cross-bottom { bottom: 0; left: 50%; width: 1px; height: 7px;  transform: translateX(-50%); }
+.cross-left   { left: 0;   top: 50%;  height: 1px; width: 7px;  transform: translateY(-50%); }
+.cross-right  { right: 0;  top: 50%;  height: 1px; width: 7px;  transform: translateY(-50%); }
+.cursor-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
   transform: translate(-50%, -50%);
 }
-.cursor-ring {
-  width: 22px;
-  height: 22px;
-  border: 1px solid var(--cyan);
-  border-radius: 50%;
-  mix-blend-mode: screen;
-  transition: transform 0.15s ease-out;
+button, a, input, textarea, select { cursor: none !important; }
+
+/* Scan-line column passes through the orb at all times */
+.scanline-anim {
+  background: linear-gradient(90deg, transparent 0%, rgba(0,200,255,0.04) 40%, rgba(0,200,255,0.12) 50%, rgba(0,200,255,0.04) 60%, transparent 100%);
+  height: 100% !important;
+  width: 220px !important;
+  top: 0 !important;
+  left: 0 !important;
+  bottom: auto !important;
+  right: auto !important;
+  animation: scan-h 11s linear infinite !important;
 }
-.cursor-dot {
-  width: 4px;
-  height: 4px;
-  background: var(--cyan);
-  border-radius: 50%;
+@keyframes scan-h {
+  0%   { transform: translateX(-220px); }
+  100% { transform: translateX(100vw); }
 }
-button, a, input, textarea { cursor: none !important; }
 
 /* Leaflet container override */
 .leaflet-container {

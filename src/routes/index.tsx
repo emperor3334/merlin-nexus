@@ -13,6 +13,9 @@ import { MicIndicator } from "@/components/MicIndicator";
 import { FloatingResponse } from "@/components/FloatingResponse";
 import { useMerlin } from "@/store/merlinStore";
 import { MerlinAPI } from "@/api/merlin-api";
+import { Terminal } from "@/components/Terminal/Terminal";
+import { ModeIndicator } from "@/components/ModeIndicator";
+import { useMicAnalyser } from "@/hooks/useAudioAnalyser";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -27,13 +30,19 @@ export const Route = createFileRoute("/")({
 function Index() {
   const bootDone = useMerlin((s) => s.bootDone);
   const hasContent = useMerlin((s) => s.activeContent.type !== null);
+  useMicAnalyser();
 
   useEffect(() => {
-    const { setBackendOnline, log } = useMerlin.getState();
+    const { setBackendOnline, setAiMode, log } = useMerlin.getState();
     log("SYSTEM INIT");
     MerlinAPI.status()
       .then(() => { setBackendOnline(true); log("BACKEND CONNECTED"); })
       .catch(() => { setBackendOnline(false); log("BACKEND OFFLINE — SIM"); });
+    MerlinAPI.mode()
+      .then((d: any) => {
+        if (d?.mode) setAiMode(d.mode, d.internet);
+      })
+      .catch(() => {});
   }, []);
 
   return (
@@ -42,12 +51,13 @@ function Index() {
       <Particles />
       <div className="scanlines" />
       <div className="vignette" />
-      {!hasContent && <div className="scanline-anim" />}
+      <div className="scanline-anim" />
       <Cursor />
 
       <AnimatePresence>{!bootDone && <BootSequence />}</AnimatePresence>
 
       <Ticker />
+      <ModeIndicator />
       <ContentPanel />
 
       <motion.div
@@ -60,12 +70,13 @@ function Index() {
             : { left: "50%", top: "50%", transform: "translate(-50%, -50%)" }
         }
       >
-        <Orb size={hasContent ? 56 : 200} />
+        <Orb size={hasContent ? 56 : 160} />
       </motion.div>
 
       <FloatingResponse />
       <ActivityLog />
       <MicIndicator />
+      <Terminal />
     </div>
   );
 }

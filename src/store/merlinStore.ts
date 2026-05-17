@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 export type OrbState = "standby" | "thinking" | "listening" | "speaking";
-export type ContentType = "map" | "video" | "chart" | "search" | "image" | "text" | null;
+export type ContentType = "map" | "video" | "chart" | "search" | "image" | "text" | "web" | null;
 
 export interface Message {
   id: string;
@@ -14,6 +14,8 @@ export interface Message {
 export interface ActiveContent {
   type: ContentType;
   data?: any;
+  url?: string;
+  title?: string;
 }
 
 export interface LogEntry {
@@ -23,6 +25,8 @@ export interface LogEntry {
 
 interface MerlinState {
   backendOnline: boolean;
+  aiMode: "claude" | "ollama" | "offline";
+  internet: boolean;
   userName: string;
   orbState: OrbState;
   activeContent: ActiveContent;
@@ -32,8 +36,11 @@ interface MerlinState {
   micFilled: boolean;
   sessionActive: boolean;
   bootDone: boolean;
+  audioLevel: number;
+  wakeFlash: number;
   activityLog: LogEntry[];
   setBackendOnline: (b: boolean) => void;
+  setAiMode: (m: "claude" | "ollama" | "offline", internet?: boolean) => void;
   setOrbState: (s: OrbState) => void;
   setContent: (c: ActiveContent) => void;
   clearContent: () => void;
@@ -43,13 +50,17 @@ interface MerlinState {
   setMicFilled: (a: boolean) => void;
   setSessionActive: (a: boolean) => void;
   setBootDone: (b: boolean) => void;
+  setAudioLevel: (v: number) => void;
+  triggerWakeFlash: () => void;
   log: (text: string) => void;
 }
 
-const ts = () => new Date().toLocaleTimeString("cs-CZ", { hour12: false });
+const ts = () => new Date().toLocaleTimeString("en-GB", { hour12: false });
 
 export const useMerlin = create<MerlinState>((set) => ({
   backendOnline: false,
+  aiMode: "offline",
+  internet: false,
   userName: "OPERATOR",
   orbState: "standby",
   activeContent: { type: null },
@@ -59,8 +70,12 @@ export const useMerlin = create<MerlinState>((set) => ({
   micFilled: false,
   sessionActive: false,
   bootDone: false,
+  audioLevel: 0,
+  wakeFlash: 0,
   activityLog: [],
   setBackendOnline: (b) => set({ backendOnline: b }),
+  setAiMode: (m, internet) =>
+    set((st) => ({ aiMode: m, internet: internet ?? st.internet })),
   setOrbState: (s) => set({ orbState: s }),
   setContent: (c) => set({ activeContent: c }),
   clearContent: () => set({ activeContent: { type: null } }),
@@ -70,6 +85,8 @@ export const useMerlin = create<MerlinState>((set) => ({
   setMicFilled: (a) => set({ micFilled: a }),
   setSessionActive: (a) => set({ sessionActive: a }),
   setBootDone: (b) => set({ bootDone: b }),
+  setAudioLevel: (v) => set({ audioLevel: v }),
+  triggerWakeFlash: () => set({ wakeFlash: Date.now() }),
   log: (text) =>
     set((st) => ({ activityLog: [{ time: ts(), text }, ...st.activityLog].slice(0, 8) })),
 }));

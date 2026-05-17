@@ -47,4 +47,13 @@ export const MerlinAPI = {
     }).then((r) => r.json()),
 
   system: () => fetch(`${BASE}/api/system`).then((r) => r.json()),
+
+  browser: (command: string, action?: string, data?: any) =>
+    fetch(`${BASE}/api/browser`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ command, action, ...(data || {}) }),
+    }).then((r) => r.json()),
+
+  mode: () => fetch(`${BASE}/api/mode`).then((r) => r.json()),
 };
