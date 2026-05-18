@@ -70,55 +70,64 @@ export const Terminal = () => {
     <AnimatePresence>
       {open && (
         <motion.div
-          initial={{ y: 280, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 280, opacity: 0 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
-          className="fixed bottom-0 left-0 right-0 flex flex-col"
+          initial={{ x: "100%" }}
+          animate={{ x: 0 }}
+          exit={{ x: "100%" }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+          className="fixed top-0 right-0 flex flex-col"
           style={{
-            height: 280,
-            background: "rgba(3,8,18,0.97)",
-            borderTop: "1px solid rgba(0,200,255,0.3)",
-            zIndex: 900,
+            width: 280,
+            height: "100vh",
+            background: "transparent",
+            borderLeft: "1px solid rgba(0,200,255,0.08)",
+            zIndex: 500,
+            padding: "20px 16px 70px 16px",
           }}
         >
-          {/* HEADER */}
-          <div
-            className="flex items-center justify-between px-4"
-            style={{
-              height: 28,
-              borderBottom: "1px solid rgba(0,200,255,0.15)",
-              color: "rgba(0,200,255,0.6)",
-            }}
+          <span
+            className="font-orbitron absolute top-2 right-3"
+            style={{ fontSize: 8, letterSpacing: 2, color: "rgba(0,200,255,0.2)" }}
           >
-            <span className="font-orbitron" style={{ fontSize: 9, letterSpacing: 3 }}>
-              MERLIN TERMINAL
-            </span>
-            <span className="font-orbitron" style={{ fontSize: 9, letterSpacing: 2 }}>
-              ESC TO CLOSE
-            </span>
-          </div>
+            ESC
+          </span>
 
-          {/* CONTENT */}
+          {/* MESSAGES */}
           <div
             ref={scrollRef}
-            className="flex-1 overflow-y-auto font-mono px-4 py-2"
-            style={{ fontSize: 13, color: "var(--cyan)" }}
+            className="flex-1 overflow-y-auto"
+            style={{ scrollbarWidth: "none" }}
           >
             {messages.slice(-40).map((m) => (
-              <div key={m.id} className="leading-relaxed">
-                {m.role === "user" ? (
-                  <span style={{ color: "rgba(0,200,255,0.7)" }}>▶ {m.text}</span>
-                ) : (
-                  <span style={{ color: "#00ffaa" }}>MERLIN: {m.text}</span>
-                )}
+              <div key={m.id} style={{ marginBottom: 16 }}>
+                <div
+                  className="font-orbitron"
+                  style={{ fontSize: 8, letterSpacing: 2, color: "rgba(0,200,255,0.35)", marginBottom: 4 }}
+                >
+                  {new Date(m.timestamp).toLocaleTimeString("en-GB", { hour12: false })} ›
+                </div>
+                <div
+                  className="font-rajdhani"
+                  style={{
+                    fontSize: 13,
+                    lineHeight: 1.45,
+                    color: m.role === "user" ? "rgba(255,255,255,0.6)" : "rgba(0,200,255,0.85)",
+                  }}
+                >
+                  {m.text}
+                </div>
               </div>
             ))}
           </div>
 
           {/* INPUT LINE */}
-          <div className="flex items-center px-4 py-2" style={{ borderTop: "1px solid rgba(0,200,255,0.1)" }}>
-            <span className="font-mono pr-2" style={{ color: "var(--cyan)", fontSize: 14 }}>
+          <div
+            className="absolute flex items-center"
+            style={{ bottom: 20, left: 16, right: 16 }}
+          >
+            <span
+              className="font-orbitron pr-2"
+              style={{ color: "rgba(0,200,255,0.6)", fontSize: 10 }}
+            >
               ▶
             </span>
             <input
@@ -126,7 +135,7 @@ export const Terminal = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={onKeyDown}
-              className="flex-1 bg-transparent outline-none font-mono"
+              className="flex-1 bg-transparent outline-none border-0 font-rajdhani"
               style={{ color: "#c8e8ff", caretColor: "#00c8ff", fontSize: 13 }}
               placeholder="type a command…"
               spellCheck={false}
