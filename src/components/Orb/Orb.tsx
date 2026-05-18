@@ -9,36 +9,71 @@ const STATE_LABEL: Record<string, string> = {
   speaking: "SPEAKING",
 };
 
-const Ring = ({
-  size,
-  duration,
-  reverse,
-  opacity,
-}: {
-  size: number;
-  duration: number;
-  reverse?: boolean;
-  opacity: number;
-}) => (
-  <div
-    className="orb-ring"
-    style={{
-      width: size,
-      height: size,
-      animation: `${reverse ? "spin-ccw" : "spin-cw"} ${duration}s linear infinite`,
-      opacity,
-      borderWidth: 1.5,
-    }}
-  >
-    <span className="orb-dot" />
-  </div>
-);
+// 8 compass tick marks around the ring
+const Ticks = ({ size }: { size: number }) => {
+  const r = size / 2;
+  return (
+    <>
+      {Array.from({ length: 8 }).map((_, i) => {
+        const angle = i * 45;
+        return (
+          <div
+            key={i}
+            className="absolute left-1/2 top-1/2 pointer-events-none"
+            style={{
+              width: 2,
+              height: 9,
+              background: "rgba(0,200,255,0.7)",
+              boxShadow: "0 0 4px rgba(0,200,255,0.7)",
+              transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-${r + 10}px)`,
+              transformOrigin: "center",
+            }}
+          />
+        );
+      })}
+    </>
+  );
+};
 
-export const Orb = ({ size = 200 }: { size?: number }) => {
+// 4 corner brackets at 45deg positions
+const CornerBrackets = ({ size }: { size: number }) => {
+  const offset = size / 2 + 22;
+  const bracket = (rot: number) => (
+    <div
+      className="absolute left-1/2 top-1/2 pointer-events-none"
+      style={{
+        width: 10,
+        height: 10,
+        transform: `translate(-50%, -50%) rotate(${rot}deg) translateY(-${offset}px)`,
+        transformOrigin: "center",
+      }}
+    >
+      <div
+        style={{
+          width: 10,
+          height: 10,
+          borderTop: "1px solid rgba(0,200,255,0.55)",
+          borderLeft: "1px solid rgba(0,200,255,0.55)",
+        }}
+      />
+    </div>
+  );
+  return (
+    <>
+      {bracket(45)}
+      {bracket(135)}
+      {bracket(225)}
+      {bracket(315)}
+    </>
+  );
+};
+
+export const Orb = ({ size = 160 }: { size?: number }) => {
   const orbState = useMerlin((s) => s.orbState);
   const audioLevel = useMerlin((s) => s.audioLevel);
   const wakeFlash = useMerlin((s) => s.wakeFlash);
   const [flash, setFlash] = useState(false);
+
   useEffect(() => {
     if (!wakeFlash) return;
     setFlash(true);
@@ -46,54 +81,118 @@ export const Orb = ({ size = 200 }: { size?: number }) => {
     return () => clearTimeout(t);
   }, [wakeFlash]);
 
-  const showLabel = size >= 120;
-  const coreSize = Math.round(size * 0.5);
-  // Speed multiplier per state
-  const speed = orbState === "listening" ? 0.35 : orbState === "speaking" ? 0.6 : orbState === "thinking" ? 0.7 : 1;
-  // Pulse: driven by audio level when listening/speaking
-  const corePulse = (orbState === "listening" || orbState === "speaking")
-    ? 1 + audioLevel * 0.3
-    : 1;
+  const showLabel = size >= 110;
+
+  // Glow strength reacts to state + audio
+  const baseGlow =
+    orbState === "listening" || orbState === "speaking"
+      ? 1 + audioLevel * 0.5
+      : 1;
+
+  const ringColor =
+    orbState === "listening"
+      ? "#40d0ff"
+      : orbState === "speaking"
+      ? "#00ccff"
+      : "#00b4ff";
+
+  const glowSpread = baseGlow;
 
   return (
     <motion.div
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: "spring", stiffness: 180, damping: 18, delay: 0.2 }}
-      className="flex flex-col items-center gap-3 select-none"
+      className="flex flex-col items-center select-none"
+      style={{ width: size + 80, height: size + 80 }}
     >
       <div
-        className={`orb-shell orb-${orbState}`}
-        style={{ width: size, height: size, position: "relative" }}
+        className="relative flex items-center justify-center"
+        style={{ width: size + 60, height: size + 60 }}
       >
-        <Ring size={size} duration={10 * speed} opacity={0.65} />
-        <Ring size={size * 0.86} duration={8 * speed} reverse opacity={0.55} />
-        <Ring size={size * 0.72} duration={14 * speed} opacity={0.4} />
-        <Ring size={size * 0.58} duration={6 * speed} reverse opacity={0.35} />
+        {/* Tick marks */}
+        <Ticks size={size} />
+        {/* Corner brackets */}
+        {showLabel && <CornerBrackets size={size} />}
 
+        {/* THE RING */}
         <motion.div
-          className="orb-core"
+          className="absolute left-1/2 top-1/2"
           style={{
-            width: coreSize,
-            height: coreSize,
-            fontSize: Math.max(8, size * 0.07),
+            width: size,
+            height: size,
+            borderRadius: "50%",
+            border: `${Math.max(2, size * 0.018)}px solid ${ringColor}`,
+            background: "transparent",
+            transform: "translate(-50%, -50%)",
           }}
-          animate={{ scale: corePulse }}
-          transition={{ duration: 0.08, ease: "easeOut" }}
-        >
-          {showLabel && <span>MERLIN</span>}
-        </motion.div>
+          animate={{
+            boxShadow: [
+              `0 0 ${20 * glowSpread}px ${ringColor}, 0 0 ${40 * glowSpread}px rgba(0,180,255,0.7), 0 0 ${80 * glowSpread}px rgba(0,140,255,0.4), 0 0 ${120 * glowSpread}px rgba(0,100,255,0.2), inset 0 0 20px rgba(0,180,255,0.10)`,
+              `0 0 ${28 * glowSpread}px ${ringColor}, 0 0 ${56 * glowSpread}px rgba(0,180,255,0.8), 0 0 ${100 * glowSpread}px rgba(0,140,255,0.45), 0 0 ${140 * glowSpread}px rgba(0,100,255,0.22), inset 0 0 24px rgba(0,180,255,0.14)`,
+              `0 0 ${20 * glowSpread}px ${ringColor}, 0 0 ${40 * glowSpread}px rgba(0,180,255,0.7), 0 0 ${80 * glowSpread}px rgba(0,140,255,0.4), 0 0 ${120 * glowSpread}px rgba(0,100,255,0.2), inset 0 0 20px rgba(0,180,255,0.10)`,
+            ],
+          }}
+          transition={{
+            duration: orbState === "thinking" ? 1.2 : orbState === "speaking" ? 0.6 : 3,
+            ease: "easeInOut",
+            repeat: Infinity,
+          }}
+        />
+
+        {/* Rotating arc for thinking state */}
+        {orbState === "thinking" && (
+          <motion.div
+            className="absolute left-1/2 top-1/2 pointer-events-none"
+            style={{
+              width: size + 14,
+              height: size + 14,
+              borderRadius: "50%",
+              border: `2px solid transparent`,
+              borderTopColor: "#80e0ff",
+              borderRightColor: "rgba(128,224,255,0.6)",
+              transform: "translate(-50%, -50%)",
+              boxShadow: "0 0 18px rgba(128,224,255,0.6)",
+            }}
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, ease: "linear", repeat: Infinity }}
+          />
+        )}
+
+        {/* Center text */}
+        {showLabel && (
+          <div
+            className="absolute left-1/2 top-1/2 pointer-events-none flex flex-col items-center"
+            style={{ transform: "translate(-50%, -50%)" }}
+          >
+            <span
+              className="font-orbitron"
+              style={{
+                color: "#ffffff",
+                fontSize: Math.max(11, size * 0.09),
+                letterSpacing: Math.max(2, size * 0.025) + "px",
+                fontWeight: 500,
+                textShadow: "0 0 12px rgba(0,200,255,0.8)",
+              }}
+            >
+              MERLIN
+            </span>
+          </div>
+        )}
 
         {/* Wake-word flash ripple */}
         <AnimatePresence>
           {flash && (
             <motion.div
-              initial={{ opacity: 0.8, scale: 0.8 }}
+              initial={{ opacity: 0.8, scale: 0.9 }}
               animate={{ opacity: 0, scale: 2 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.6, ease: "easeOut" }}
-              className="pointer-events-none absolute inset-0 rounded-full"
+              className="pointer-events-none absolute left-1/2 top-1/2 rounded-full"
               style={{
+                width: size,
+                height: size,
+                transform: "translate(-50%, -50%)",
                 border: "2px solid #ffffff",
                 boxShadow: "0 0 30px rgba(255,255,255,0.8)",
               }}
@@ -101,8 +200,17 @@ export const Orb = ({ size = 200 }: { size?: number }) => {
           )}
         </AnimatePresence>
       </div>
+
       {showLabel && (
-        <div className="font-orbitron text-[9px] tracking-[5px]" style={{ color: "var(--text)", opacity: 0.7 }}>
+        <div
+          className="font-orbitron mt-4"
+          style={{
+            color: "rgba(255,255,255,0.55)",
+            fontSize: 10,
+            letterSpacing: "8px",
+            fontWeight: 400,
+          }}
+        >
           {STATE_LABEL[orbState]}
         </div>
       )}
