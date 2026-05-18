@@ -16,6 +16,8 @@ import { MerlinAPI } from "@/api/merlin-api";
 import { Terminal } from "@/components/Terminal/Terminal";
 import { ModeIndicator } from "@/components/ModeIndicator";
 import { useMicAnalyser } from "@/hooks/useAudioAnalyser";
+import { TopBar } from "@/components/TopBar";
+import { BottomBar } from "@/components/BottomBar";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -49,13 +51,13 @@ function Index() {
     <div className="h-screen w-screen relative overflow-hidden" style={{ background: "var(--bg)" }}>
       <GridBackground />
       <Particles />
-      <div className="scanlines" />
       <div className="vignette" />
       <div className="scanline-anim" />
       <Cursor />
 
       <AnimatePresence>{!bootDone && <BootSequence />}</AnimatePresence>
 
+      <TopBar />
       <Ticker />
       <ModeIndicator />
       <ContentPanel />
@@ -66,17 +68,18 @@ function Index() {
         className="absolute z-20 pointer-events-none"
         style={
           hasContent
-            ? { right: 24, bottom: 80 }
+            ? { right: 28, bottom: 60 }
             : { left: "50%", top: "50%", transform: "translate(-50%, -50%)" }
         }
       >
-        <Orb size={hasContent ? 56 : 160} />
+        <Orb size={hasContent ? 60 : 160} />
       </motion.div>
 
       <FloatingResponse />
       <ActivityLog />
       <MicIndicator />
       <Terminal />
+      <BottomBar />
     </div>
   );
 }
