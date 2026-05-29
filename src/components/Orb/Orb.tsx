@@ -152,7 +152,8 @@ export const Orb = ({ size = 160 }: { size?: number }) => {
               border: `2px solid transparent`,
               borderTopColor: "#80e0ff",
               borderRightColor: "rgba(128,224,255,0.6)",
-              transform: "translate(-50%, -50%)",
+              marginLeft: -(size + 14) / 2,
+              marginTop: -(size + 14) / 2,
               boxShadow: "0 0 18px rgba(128,224,255,0.6)",
             }}
             animate={{ rotate: 360 }}
