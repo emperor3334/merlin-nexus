@@ -52,7 +52,7 @@ function Index() {
       <GridBackground />
       <Particles />
       <div className="vignette" />
-      <div className="scanline-anim" />
+      {!hasContent && <div className="scanline-anim" />}
       <Cursor />
 
       <AnimatePresence>{!bootDone && <BootSequence />}</AnimatePresence>
@@ -68,7 +68,7 @@ function Index() {
         className="absolute z-20 pointer-events-none"
         style={
           hasContent
-            ? { right: 28, bottom: 60 }
+            ? { right: 28, bottom: 150 }
             : { left: "50%", top: "50%", transform: "translate(-50%, -50%)" }
         }
       >
