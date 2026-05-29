@@ -82,6 +82,7 @@ export const Orb = ({ size = 160 }: { size?: number }) => {
   }, [wakeFlash]);
 
   const showLabel = size >= 110;
+  const showCenter = true;
 
   // Glow strength reacts to state + audio
   const baseGlow =
@@ -160,7 +161,7 @@ export const Orb = ({ size = 160 }: { size?: number }) => {
         )}
 
         {/* Center text */}
-        {showLabel && (
+        {showCenter && (
           <div
             className="absolute left-1/2 top-1/2 pointer-events-none flex flex-col items-center"
             style={{ transform: "translate(-50%, -50%)" }}
@@ -169,8 +170,8 @@ export const Orb = ({ size = 160 }: { size?: number }) => {
               className="font-orbitron"
               style={{
                 color: "#ffffff",
-                fontSize: Math.max(11, size * 0.09),
-                letterSpacing: Math.max(2, size * 0.025) + "px",
+                fontSize: Math.max(7, size * 0.11),
+                letterSpacing: Math.max(1, size * 0.025) + "px",
                 fontWeight: 500,
                 textShadow: "0 0 12px rgba(0,200,255,0.8)",
               }}
