@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMerlin } from "@/store/merlinStore";
 
 const STATE_LABEL: Record<string, string> = {
@@ -7,6 +7,63 @@ const STATE_LABEL: Record<string, string> = {
   thinking: "PROCESSING",
   listening: "LISTENING",
   speaking: "SPEAKING",
+};
+
+// Geodesic "flower of life" style sphere mesh, generated as SVG lines.
+const useGeoMesh = () => {
+  return useMemo(() => {
+    const c = 50;
+    const n = 12;
+    const rings = [9, 18, 27, 36, 44];
+    const TAU = Math.PI * 2;
+    const pt = (r: number, a: number): [number, number] => [
+      c + r * Math.cos(a),
+      c + r * Math.sin(a),
+    ];
+    const lines: [[number, number], [number, number]][] = [];
+    // ring polygons
+    rings.forEach((r) => {
+      for (let j = 0; j < n; j++) {
+        lines.push([pt(r, (j / n) * TAU), pt(r, ((j + 1) / n) * TAU)]);
+      }
+    });
+    // radial + diagonal connectors -> triangles
+    for (let i = 0; i < rings.length - 1; i++) {
+      const r1 = rings[i];
+      const r2 = rings[i + 1];
+      for (let j = 0; j < n; j++) {
+        const a = (j / n) * TAU;
+        const an = ((j + 1) / n) * TAU;
+        lines.push([pt(r1, a), pt(r2, a)]);
+        lines.push([pt(r1, a), pt(r2, an)]);
+      }
+    }
+    // center spokes
+    for (let j = 0; j < n; j++) {
+      lines.push([[c, c], pt(rings[0], (j / n) * TAU)]);
+    }
+    return { lines, c };
+  }, []);
+};
+
+const GeoSphere = ({ size, color }: { size: number; color: string }) => {
+  const { lines } = useGeoMesh();
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 100 100"
+      className="pointer-events-none"
+      style={{ overflow: "visible" }}
+    >
+      <circle cx={50} cy={50} r={44} fill="none" stroke={color} strokeWidth={0.6} opacity={0.5} />
+      <g stroke={color} strokeWidth={0.35} opacity={0.6} strokeLinecap="round">
+        {lines.map((l, i) => (
+          <line key={i} x1={l[0][0]} y1={l[0][1]} x2={l[1][0]} y2={l[1][1]} />
+        ))}
+      </g>
+    </svg>
+  );
 };
 
 // 8 compass tick marks around the ring
