@@ -218,24 +218,75 @@ export const Orb = ({ size = 160 }: { size?: number }) => {
           />
         )}
 
-        {/* Center text */}
+        {/* Center logo */}
         {showCenter && (
           <div
             className="absolute left-1/2 top-1/2 pointer-events-none flex flex-col items-center"
             style={{ transform: "translate(-50%, -50%)" }}
           >
-            <span
-              className="font-orbitron"
-              style={{
-                color: "#ffffff",
-                fontSize: Math.max(7, size * 0.11),
-                letterSpacing: Math.max(1, size * 0.025) + "px",
-                fontWeight: 500,
-                textShadow: "0 0 12px rgba(0,200,255,0.8)",
-              }}
-            >
-              MERLIN
-            </span>
+            {showLabel ? (
+              <motion.div
+                className="flex items-center justify-center"
+                style={{ width: size * 0.82, height: size * 0.82 }}
+                animate={
+                  orbState === "listening"
+                    ? { scale: 1 + audioLevel * 0.18, rotate: 0 }
+                    : orbState === "speaking"
+                    ? { scale: [1, 1.05, 1], rotate: 0 }
+                    : orbState === "thinking"
+                    ? { rotate: 360, scale: 1 }
+                    : { rotate: 360, scale: 1 }
+                }
+                transition={
+                  orbState === "thinking"
+                    ? { rotate: { duration: 6, ease: "linear", repeat: Infinity } }
+                    : orbState === "speaking"
+                    ? { scale: { duration: 0.7, ease: "easeInOut", repeat: Infinity } }
+                    : orbState === "listening"
+                    ? { scale: { duration: 0.15, ease: "easeOut" } }
+                    : { rotate: { duration: 60, ease: "linear", repeat: Infinity } }
+                }
+              >
+                <motion.div
+                  className="flex items-center justify-center"
+                  style={{ width: "100%", height: "100%" }}
+                  animate={{
+                    opacity:
+                      orbState === "thinking"
+                        ? [0.55, 1, 0.55]
+                        : orbState === "speaking"
+                        ? [0.7, 1, 0.7]
+                        : [0.6, 0.85, 0.6],
+                    filter: [
+                      `drop-shadow(0 0 4px ${ringColor})`,
+                      `drop-shadow(0 0 10px ${ringColor})`,
+                      `drop-shadow(0 0 4px ${ringColor})`,
+                    ],
+                  }}
+                  transition={{
+                    duration:
+                      orbState === "thinking" ? 1.2 : orbState === "speaking" ? 0.7 : 3.5,
+                    ease: "easeInOut",
+                    repeat: Infinity,
+                  }}
+                >
+                  <GeoSphere size={size * 0.82} color={ringColor} />
+                </motion.div>
+              </motion.div>
+            ) : (
+              <span
+                className="font-orbitron"
+                style={{
+                  color: "#ffffff",
+                  fontSize: Math.max(7, size * 0.11),
+                  letterSpacing: Math.max(1, size * 0.025) + "px",
+                  fontWeight: 500,
+                  textShadow: "0 0 12px rgba(0,200,255,0.8)",
+                }}
+              >
+                MERLIN
+              </span>
+            )}
           </div>
         )}
 
