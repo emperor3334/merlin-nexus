@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { useMerlin } from "@/store/merlinStore";
+import { OrbCanvas } from "./OrbCanvas";
 
 const STATE_LABEL: Record<string, string> = {
   standby: "STANDBY",
