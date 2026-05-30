@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMerlin } from "@/store/merlinStore";
 
 const STATE_LABEL: Record<string, string> = {
@@ -7,6 +7,63 @@ const STATE_LABEL: Record<string, string> = {
   thinking: "PROCESSING",
   listening: "LISTENING",
   speaking: "SPEAKING",
+};
+
+// Geodesic "flower of life" style sphere mesh, generated as SVG lines.
+const useGeoMesh = () => {
+  return useMemo(() => {
+    const c = 50;
+    const n = 12;
+    const rings = [9, 18, 27, 36, 44];
+    const TAU = Math.PI * 2;
+    const pt = (r: number, a: number): [number, number] => [
+      c + r * Math.cos(a),
+      c + r * Math.sin(a),
+    ];
+    const lines: [[number, number], [number, number]][] = [];
+    // ring polygons
+    rings.forEach((r) => {
+      for (let j = 0; j < n; j++) {
+        lines.push([pt(r, (j / n) * TAU), pt(r, ((j + 1) / n) * TAU)]);
+      }
+    });
+    // radial + diagonal connectors -> triangles
+    for (let i = 0; i < rings.length - 1; i++) {
+      const r1 = rings[i];
+      const r2 = rings[i + 1];
+      for (let j = 0; j < n; j++) {
+        const a = (j / n) * TAU;
+        const an = ((j + 1) / n) * TAU;
+        lines.push([pt(r1, a), pt(r2, a)]);
+        lines.push([pt(r1, a), pt(r2, an)]);
+      }
+    }
+    // center spokes
+    for (let j = 0; j < n; j++) {
+      lines.push([[c, c], pt(rings[0], (j / n) * TAU)]);
+    }
+    return { lines, c };
+  }, []);
+};
+
+const GeoSphere = ({ size, color }: { size: number; color: string }) => {
+  const { lines } = useGeoMesh();
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 100 100"
+      className="pointer-events-none"
+      style={{ overflow: "visible" }}
+    >
+      <circle cx={50} cy={50} r={44} fill="none" stroke={color} strokeWidth={0.6} opacity={0.5} />
+      <g stroke={color} strokeWidth={0.35} opacity={0.6} strokeLinecap="round">
+        {lines.map((l, i) => (
+          <line key={i} x1={l[0][0]} y1={l[0][1]} x2={l[1][0]} y2={l[1][1]} />
+        ))}
+      </g>
+    </svg>
+  );
 };
 
 // 8 compass tick marks around the ring
@@ -161,24 +218,75 @@ export const Orb = ({ size = 160 }: { size?: number }) => {
           />
         )}
 
-        {/* Center text */}
+        {/* Center logo */}
         {showCenter && (
           <div
             className="absolute left-1/2 top-1/2 pointer-events-none flex flex-col items-center"
             style={{ transform: "translate(-50%, -50%)" }}
           >
-            <span
-              className="font-orbitron"
-              style={{
-                color: "#ffffff",
-                fontSize: Math.max(7, size * 0.11),
-                letterSpacing: Math.max(1, size * 0.025) + "px",
-                fontWeight: 500,
-                textShadow: "0 0 12px rgba(0,200,255,0.8)",
-              }}
-            >
-              MERLIN
-            </span>
+            {showLabel ? (
+              <motion.div
+                className="flex items-center justify-center"
+                style={{ width: size * 0.82, height: size * 0.82 }}
+                animate={
+                  orbState === "listening"
+                    ? { scale: 1 + audioLevel * 0.18, rotate: 0 }
+                    : orbState === "speaking"
+                    ? { scale: [1, 1.05, 1], rotate: 0 }
+                    : orbState === "thinking"
+                    ? { rotate: 360, scale: 1 }
+                    : { rotate: 360, scale: 1 }
+                }
+                transition={
+                  orbState === "thinking"
+                    ? { rotate: { duration: 6, ease: "linear", repeat: Infinity } }
+                    : orbState === "speaking"
+                    ? { scale: { duration: 0.7, ease: "easeInOut", repeat: Infinity } }
+                    : orbState === "listening"
+                    ? { scale: { duration: 0.15, ease: "easeOut" } }
+                    : { rotate: { duration: 60, ease: "linear", repeat: Infinity } }
+                }
+              >
+                <motion.div
+                  className="flex items-center justify-center"
+                  style={{ width: "100%", height: "100%" }}
+                  animate={{
+                    opacity:
+                      orbState === "thinking"
+                        ? [0.55, 1, 0.55]
+                        : orbState === "speaking"
+                        ? [0.7, 1, 0.7]
+                        : [0.6, 0.85, 0.6],
+                    filter: [
+                      `drop-shadow(0 0 4px ${ringColor})`,
+                      `drop-shadow(0 0 10px ${ringColor})`,
+                      `drop-shadow(0 0 4px ${ringColor})`,
+                    ],
+                  }}
+                  transition={{
+                    duration:
+                      orbState === "thinking" ? 1.2 : orbState === "speaking" ? 0.7 : 3.5,
+                    ease: "easeInOut",
+                    repeat: Infinity,
+                  }}
+                >
+                  <GeoSphere size={size * 0.82} color={ringColor} />
+                </motion.div>
+              </motion.div>
+            ) : (
+              <span
+                className="font-orbitron"
+                style={{
+                  color: "#ffffff",
+                  fontSize: Math.max(7, size * 0.11),
+                  letterSpacing: Math.max(1, size * 0.025) + "px",
+                  fontWeight: 500,
+                  textShadow: "0 0 12px rgba(0,200,255,0.8)",
+                }}
+              >
+                MERLIN
+              </span>
+            )}
           </div>
         )}
 
