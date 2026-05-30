@@ -83,7 +83,6 @@ export const Orb = ({ size = 160 }: { size?: number }) => {
   }, [wakeFlash]);
 
   const showLabel = size >= 110;
-  const showCenter = true;
 
   // Glow strength reacts to state + audio
   const baseGlow =
