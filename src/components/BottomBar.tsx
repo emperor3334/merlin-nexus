@@ -19,7 +19,7 @@ export const BottomBar = () => {
         {backend ? "LINK • OK" : "LINK • OFFLINE"} · MODE {mode?.toUpperCase() ?? "—"}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <span
             key={i}
