@@ -66,6 +66,94 @@ const GeoSphere = ({ size, color }: { size: number; color: string }) => {
   );
 };
 
+// Aura wave rings + expanding pulses that swirl around the center sphere.
+const RING_DEFS = [
+  { r: 31, dash: "1.5 3", w: 1.2, dir: 1, op: 0.55 },
+  { r: 36, dash: "5 4", w: 2.2, dir: -1, op: 0.6 },
+  { r: 41, dash: "1 5", w: 1, dir: 1, op: 0.4 },
+  { r: 46, dash: "8 5", w: 2.6, dir: -1, op: 0.5 },
+  { r: 49, dash: "1 7", w: 1, dir: 1, op: 0.3 },
+];
+
+const AuraWaves = ({
+  size,
+  color,
+  state,
+  level,
+}: {
+  size: number;
+  color: string;
+  state: string;
+  level: number;
+}) => {
+  // speed multiplier (lower = faster rotation)
+  const speed =
+    state === "thinking" ? 0.4 : state === "speaking" ? 0.65 : state === "listening" ? 0.8 : 1;
+  const pulseDur =
+    state === "thinking" ? 1.5 : state === "speaking" ? 1 : state === "listening" ? 0.9 : 3.4;
+  const reactiveScale =
+    state === "listening" ? 1 + level * 0.12 : 1;
+
+  return (
+    <motion.div
+      className="absolute left-1/2 top-1/2 pointer-events-none"
+      style={{ width: size, height: size, marginLeft: -size / 2, marginTop: -size / 2 }}
+      animate={{ scale: reactiveScale }}
+      transition={{ duration: 0.15, ease: "easeOut" }}
+    >
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 100 100"
+        style={{ overflow: "visible" }}
+      >
+        {/* Expanding aura pulse waves */}
+        {[0, 1, 2].map((i) => (
+          <motion.circle
+            key={`p${i}`}
+            cx={50}
+            cy={50}
+            r={32}
+            fill="none"
+            stroke={color}
+            strokeWidth={1}
+            style={{ transformOrigin: "50px 50px" }}
+            animate={{ scale: [0.7, 1.55], opacity: [0.55, 0] }}
+            transition={{
+              duration: pulseDur,
+              ease: "easeOut",
+              repeat: Infinity,
+              delay: (pulseDur / 3) * i,
+            }}
+          />
+        ))}
+        {/* Rotating segmented rings */}
+        {RING_DEFS.map((ring, i) => (
+          <motion.circle
+            key={`r${i}`}
+            cx={50}
+            cy={50}
+            r={ring.r}
+            fill="none"
+            stroke={color}
+            strokeWidth={ring.w}
+            strokeDasharray={ring.dash}
+            strokeLinecap="round"
+            opacity={ring.op}
+            style={{ transformOrigin: "50px 50px" }}
+            animate={{ rotate: 360 * ring.dir }}
+            transition={{
+              duration: (10 + i * 3) * speed,
+              ease: "linear",
+              repeat: Infinity,
+            }}
+          />
+        ))}
+      </svg>
+    </motion.div>
+  );
+};
+
 // 8 compass tick marks around the ring
 const Ticks = ({ size }: { size: number }) => {
   const r = size / 2;
@@ -172,6 +260,11 @@ export const Orb = ({ size = 160 }: { size?: number }) => {
         <Ticks size={size} />
         {/* Corner brackets */}
         {showLabel && <CornerBrackets size={size} />}
+
+        {/* Aura waves around the sphere */}
+        {showLabel && (
+          <AuraWaves size={size * 1.5} color={ringColor} state={orbState} level={audioLevel} />
+        )}
 
         {/* THE RING */}
         <motion.div
