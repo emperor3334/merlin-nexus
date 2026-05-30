@@ -261,6 +261,11 @@ export const Orb = ({ size = 160 }: { size?: number }) => {
         {/* Corner brackets */}
         {showLabel && <CornerBrackets size={size} />}
 
+        {/* Aura waves around the sphere */}
+        {showLabel && (
+          <AuraWaves size={size * 1.5} color={ringColor} state={orbState} level={audioLevel} />
+        )}
+
         {/* THE RING */}
         <motion.div
           className="absolute left-1/2 top-1/2"
