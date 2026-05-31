@@ -186,13 +186,14 @@ export const OrbCanvas = ({
         const a1 = a0 + (Math.PI * 2) / segs - gap;
         const inner = ringR * 0.92;
         const outer = ringR * 1.08;
+        const sq = 0.86; // vertical squash (perspective)
         const depth = Math.cos(a0); // front/back fade
         const al = 0.1 + ((depth + 1) / 2) * 0.32;
         ctx.beginPath();
-        ctx.moveTo(cx + Math.cos(a0) * inner, cy + Math.sin(a0) * inner * 0.5);
-        ctx.lineTo(cx + Math.cos(a0) * outer, cy + Math.sin(a0) * outer * 0.5);
-        ctx.lineTo(cx + Math.cos(a1) * outer, cy + Math.sin(a1) * outer * 0.5);
-        ctx.lineTo(cx + Math.cos(a1) * inner, cy + Math.sin(a1) * inner * 0.5);
+        ctx.moveTo(cx + Math.cos(a0) * inner, cy + Math.sin(a0) * inner * sq);
+        ctx.lineTo(cx + Math.cos(a0) * outer, cy + Math.sin(a0) * outer * sq);
+        ctx.lineTo(cx + Math.cos(a1) * outer, cy + Math.sin(a1) * outer * sq);
+        ctx.lineTo(cx + Math.cos(a1) * inner, cy + Math.sin(a1) * inner * sq);
         ctx.closePath();
         ctx.fillStyle = rgb(curAccent, al * 0.5);
         ctx.strokeStyle = rgb(curAccent, al);
@@ -207,7 +208,7 @@ export const OrbCanvas = ({
         const off = waveOffset(p.band, p.ang, amp);
         const r = R * (p.rBase + off) * scale;
         const x = cx + Math.cos(p.ang) * r;
-        const y = cy + Math.sin(p.ang) * r * 0.62; // perspective squash
+        const y = cy + Math.sin(p.ang) * r * 0.9; // perspective squash (near-circular)
         const tw = 0.45 + 0.55 * Math.abs(Math.sin(flow * 1.4 + p.tph));
         const a = p.bright * tw * 0.85;
         ctx.beginPath();
