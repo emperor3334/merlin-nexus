@@ -121,28 +121,60 @@ function fbm(x: number, y: number): number {
   return v;
 }
 
-/* ---------------- particle energy torus ----------------
-   The aura is a dense cloud of points distributed around a torus.
-   The whole ring deforms via flowing noise so it never looks circular
-   or geometric — it breathes, stretches, splits and merges like plasma. */
-interface TorusParticle {
-  theta: number;   // angle around the main ring (0..2π)
-  phi: number;     // angle around the tube cross-section
-  tube: number;    // 0..1 distance from tube center (density falloff)
-  seed: number;    // per-particle noise seed
-  flick: number;   // twinkle phase
+/* ---------------- flowing energy membrane ----------------
+   The aura is a stack of continuous closed loops (ribbons) that each
+   deform independently via flowing FBM noise. Stroked with additive
+   blending and many overlapping layers, they read as a connected,
+   living plasma membrane rather than a cloud of independent points.   */
+interface MembraneLayer {
+  seed: number;     // unique noise seed
+  baseR: number;    // 0..1 radius factor of this layer
+  amp: number;      // deformation amplitude factor
+  freqA: number;    // primary angular frequency
+  freqB: number;    // secondary angular frequency
+  speed: number;    // flow speed factor
+  thick: number;    // stroke thickness factor
+  alpha: number;    // base opacity
+  z: number;        // -1..1 depth offset for tilt parallax
+  phase: number;    // starting phase
+}
+const LAYERS = 26;        // many overlapping membrane sheets => density
+const SEGMENTS = 200;     // smooth continuous loop resolution
+function makeLayers(): MembraneLayer[] {
+  const arr: MembraneLayer[] = [];
+  for (let i = 0; i < LAYERS; i++) {
+    const u = i / (LAYERS - 1);
+    arr.push({
+      seed: Math.random() * 1000,
+      baseR: 0.72 + u * 0.34 + (Math.random() - 0.5) * 0.05,
+      amp: 0.12 + Math.random() * 0.22,
+      freqA: 2 + Math.floor(Math.random() * 4),
+      freqB: 5 + Math.floor(Math.random() * 6),
+      speed: 0.5 + Math.random() * 1.1,
+      thick: 0.6 + Math.random() * 1.6,
+      alpha: 0.06 + Math.random() * 0.10,
+      z: (Math.random() - 0.5) * 2,
+      phase: Math.random() * Math.PI * 2,
+    });
+  }
+  return arr;
+}
+
+/* light secondary particle detail (<10% of the look) */
+interface Detail {
+  theta: number;
+  r: number;
+  seed: number;
+  flick: number;
   flickSpd: number;
 }
-const PARTICLES = 5200;
-function makeParticles(): TorusParticle[] {
-  const arr: TorusParticle[] = [];
-  for (let i = 0; i < PARTICLES; i++) {
-    // bias tube toward outer shell so the ring has a crisp glowing edge
-    const t = Math.pow(Math.random(), 0.6);
+const DETAILS = 360;
+function makeDetails(): Detail[] {
+  const arr: Detail[] = [];
+  for (let i = 0; i < DETAILS; i++) {
     arr.push({
       theta: Math.random() * Math.PI * 2,
-      phi: Math.random() * Math.PI * 2,
-      tube: t,
+      r: 0.7 + Math.random() * 0.4,
       seed: Math.random() * 1000,
       flick: Math.random() * Math.PI * 2,
       flickSpd: 0.6 + Math.random() * 2.4,
