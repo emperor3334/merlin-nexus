@@ -310,63 +310,79 @@ export const OrbCanvas = ({
       ctx.arc(cx, cy, R * 0.42 * scale, 0, Math.PI * 2);
       ctx.fill();
 
-      /* ---- the living particle torus (the aura) ---- */
+      /* ---- the living energy membrane (continuous flowing loops) ---- */
       const ca = Math.cos(rot);
       const sa = Math.sin(rot);
-      const hi = lighten(curBase, 0.45);
+      const hi = lighten(curBase, 0.5);
 
-      for (let i = 0; i < particles.length; i++) {
-        const p = particles[i];
-        // slow drift around the ring so the whole structure flows
-        const theta = p.theta + flow * 0.05 * curDir;
-
-        // ---- organic ring-radius deformation (never a circle) ----
-        const n1 = fbm(Math.cos(theta) * 1.3 + p.seed * 0.01 + flow * 0.12,
-                       Math.sin(theta) * 1.3 + flow * 0.09);
-        const n2 = noise2(theta * 2.0 + flow * 0.2, p.seed * 0.02);
-        const ringDeform = 1 + (n1 * 0.55 + n2 * 0.22) * (0.35 + amp * 0.5);
-        const ringR = R * ringDeform;
-
-        // ---- tube (thickness) deformation per particle ----
-        const tubeN = fbm(p.seed * 0.05 + flow * 0.25, theta * 1.5);
-        const tubeR = TUBE * p.tube * (0.85 + tubeN * 0.45 + amp * 0.25);
-
-        // local torus coords
+      // project a 3D ring point (in the tilted/spun torus space) to screen
+      const project = (theta: number, radius: number, zOff: number) => {
         const cosTh = Math.cos(theta);
         const sinTh = Math.sin(theta);
-        const cphi = Math.cos(p.phi + flow * 0.3);
-        const sphi = Math.sin(p.phi + flow * 0.3);
-
-        // base ring point in XZ plane + tube offset along outward & up
-        let x = (ringR + tubeR * cphi) * cosTh;
-        let z = (ringR + tubeR * cphi) * sinTh;
-        let y = tubeR * sphi;
-
-        // micro turbulence — independent jitter so particles shimmer/merge
-        const tx = noise2(p.seed + flow * 0.6, theta * 3.0) * TUBE * 0.28 * amp;
-        const ty = noise2(p.seed * 1.7 + flow * 0.55, p.phi * 2.0) * TUBE * 0.28 * amp;
-        x += tx;
-        y += ty;
-
-        // rotate around Y (spin) then tilt around X (view from above)
+        let x = radius * cosTh;
+        let z = radius * sinTh;
+        let y = zOff;
         const rx = x * ca + z * sa;
         const rz = -x * sa + z * ca;
         const ry = y * cosT - rz * sinT;
         const depth = y * sinT + rz * cosT; // +front / -back
+        return {
+          sx: cx + rx * scale,
+          sy: cy + ry * scale,
+          dn: (depth / R + 1) / 2,
+        };
+      };
 
-        const sx = cx + rx * scale;
-        const sy = cy + ry * scale;
+      // per-layer radius at a given angle — organic, non-symmetric deformation
+      const layerRadius = (L: MembraneLayer, theta: number, fl: number) => {
+        // independent multi-octave flow: each angular region moves on its own
+        const n1 = fbm(
+          Math.cos(theta) * L.freqA * 0.5 + L.seed * 0.013,
+          Math.sin(theta) * L.freqA * 0.5 + fl * L.speed * 0.5,
+        );
+        const n2 = noise2(theta * L.freqB + L.seed, fl * L.speed * 0.8 + L.seed * 0.07);
+        const n3 = noise2(theta * (L.freqA + 1) - fl * L.speed * 0.4, L.seed * 0.2);
+        const deform = (n1 * 0.6 + n2 * 0.3 + n3 * 0.2) * L.amp * (0.6 + amp * 0.8);
+        return R * L.baseR * (1 + deform);
+      };
 
-        // depth shading: front particles brighter & larger
-        const dn = (depth / R + 1) / 2; // ~0..1
-        const twinkle = 0.6 + 0.4 * Math.sin(p.flick + t * p.flickSpd);
-        const edge = 0.45 + 0.55 * p.tube; // outer-shell particles a touch brighter
-        let a = (0.16 + dn * 0.42) * twinkle * edge;
-        if (a < 0.012) continue;
-        const psize = (0.6 + dn * 1.1) * scale;
+      for (let li = 0; li < layers.length; li++) {
+        const L = layers[li];
+        const fl = flow + L.phase;
+        const zOff = L.z * TUBE * 1.4;
+        ctx.beginPath();
+        let frontSum = 0;
+        for (let s = 0; s <= SEGMENTS; s++) {
+          const theta = (s / SEGMENTS) * Math.PI * 2 + flow * 0.04 * curDir;
+          const rr = layerRadius(L, theta, fl);
+          const pt = project(theta, rr, zOff);
+          frontSum += pt.dn;
+          if (s === 0) ctx.moveTo(pt.sx, pt.sy);
+          else ctx.lineTo(pt.sx, pt.sy);
+        }
+        ctx.closePath();
+        const front = frontSum / (SEGMENTS + 1);
+        const col = front > 0.55 ? mix(curBase, hi, (front - 0.55) * 2) : curBase;
+        ctx.strokeStyle = rgb(col, L.alpha * (0.5 + front) * glowPulse);
+        ctx.lineWidth = L.thick * scale;
+        ctx.stroke();
+      }
 
-        ctx.fillStyle = rgb(dn > 0.62 ? hi : curBase, a);
-        ctx.fillRect(sx - psize * 0.5, sy - psize * 0.5, psize, psize);
+      /* ---- secondary particle detail (<10% of the look) ---- */
+      for (let i = 0; i < details.length; i++) {
+        const d = details[i];
+        const theta = d.theta + flow * 0.05 * curDir;
+        const n = fbm(Math.cos(theta) * 1.4 + d.seed * 0.01 + flow * 0.1,
+                      Math.sin(theta) * 1.4 + flow * 0.08);
+        const rr = R * d.r * (1 + n * 0.28 * (0.6 + amp * 0.6));
+        const zOff = (noise2(d.seed, flow * 0.4) ) * TUBE * 1.2;
+        const pt = project(theta, rr, zOff);
+        const twinkle = 0.5 + 0.5 * Math.sin(d.flick + t * d.flickSpd);
+        const a = (0.1 + pt.dn * 0.25) * twinkle;
+        if (a < 0.01) continue;
+        const psize = (0.5 + pt.dn * 0.9) * scale;
+        ctx.fillStyle = rgb(pt.dn > 0.6 ? hi : curBase, a);
+        ctx.fillRect(pt.sx - psize * 0.5, pt.sy - psize * 0.5, psize, psize);
       }
 
       ctx.globalCompositeOperation = "source-over";
