@@ -182,8 +182,8 @@ export const OrbCanvas = ({
 
     const cx = dim / 2;
     const cy = dim / 2;
-    const R = size * 0.95;       // main ring radius
-    const TUBE = size * 0.34;    // tube (thickness) radius of the ring
+    const R = size * 0.92;       // main ring radius
+    const TUBE = size * 0.2;     // tube (thickness) radius of the ring
 
     const particles = makeParticles();
 
@@ -206,7 +206,7 @@ export const OrbCanvas = ({
     let themeTick = 0;
 
     // viewed slightly from above so the ring reads as a tilted torus
-    const tilt = -1.12;
+    const tilt = -0.58;
     const cosT = Math.cos(tilt);
     const sinT = Math.sin(tilt);
 
@@ -296,7 +296,7 @@ export const OrbCanvas = ({
 
         // ---- tube (thickness) deformation per particle ----
         const tubeN = fbm(p.seed * 0.05 + flow * 0.25, theta * 1.5);
-        const tubeR = TUBE * p.tube * (0.7 + tubeN * 0.6 + amp * 0.4);
+        const tubeR = TUBE * p.tube * (0.85 + tubeN * 0.45 + amp * 0.25);
 
         // local torus coords
         const cosTh = Math.cos(theta);
@@ -310,8 +310,8 @@ export const OrbCanvas = ({
         let y = tubeR * sphi;
 
         // micro turbulence — independent jitter so particles shimmer/merge
-        const tx = noise2(p.seed + flow * 0.6, theta * 3.0) * TUBE * 0.5 * amp;
-        const ty = noise2(p.seed * 1.7 + flow * 0.55, p.phi * 2.0) * TUBE * 0.5 * amp;
+        const tx = noise2(p.seed + flow * 0.6, theta * 3.0) * TUBE * 0.28 * amp;
+        const ty = noise2(p.seed * 1.7 + flow * 0.55, p.phi * 2.0) * TUBE * 0.28 * amp;
         x += tx;
         y += ty;
 
@@ -327,10 +327,10 @@ export const OrbCanvas = ({
         // depth shading: front particles brighter & larger
         const dn = (depth / R + 1) / 2; // ~0..1
         const twinkle = 0.6 + 0.4 * Math.sin(p.flick + t * p.flickSpd);
-        const edge = 0.4 + 0.6 * p.tube; // outer-shell particles a touch brighter
-        let a = (0.05 + dn * 0.4) * twinkle * edge;
+        const edge = 0.45 + 0.55 * p.tube; // outer-shell particles a touch brighter
+        let a = (0.08 + dn * 0.5) * twinkle * edge;
         if (a < 0.012) continue;
-        const psize = (0.45 + dn * 1.1) * scale;
+        const psize = (0.5 + dn * 1.2) * scale;
 
         ctx.fillStyle = rgb(dn > 0.62 ? hi : curBase, a);
         ctx.fillRect(sx - psize * 0.5, sy - psize * 0.5, psize, psize);
