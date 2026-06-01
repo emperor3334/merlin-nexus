@@ -121,36 +121,35 @@ function fbm(x: number, y: number): number {
   return v;
 }
 
-/* ---------------- 3D wireframe core sphere ---------------- */
-const LAT = 13;
-const LONG = 20;
-const verts: { x: number; y: number; z: number }[][] = [];
-for (let i = 0; i <= LAT; i++) {
-  const row: { x: number; y: number; z: number }[] = [];
-  const phi = (i / LAT) * Math.PI - Math.PI / 2;
-  for (let j = 0; j < LONG; j++) {
-    const theta = (j / LONG) * Math.PI * 2;
-    row.push({
-      x: Math.cos(phi) * Math.cos(theta),
-      y: Math.sin(phi),
-      z: Math.cos(phi) * Math.sin(theta),
+/* ---------------- particle energy torus ----------------
+   The aura is a dense cloud of points distributed around a torus.
+   The whole ring deforms via flowing noise so it never looks circular
+   or geometric — it breathes, stretches, splits and merges like plasma. */
+interface TorusParticle {
+  theta: number;   // angle around the main ring (0..2π)
+  phi: number;     // angle around the tube cross-section
+  tube: number;    // 0..1 distance from tube center (density falloff)
+  seed: number;    // per-particle noise seed
+  flick: number;   // twinkle phase
+  flickSpd: number;
+}
+const PARTICLES = 5200;
+function makeParticles(): TorusParticle[] {
+  const arr: TorusParticle[] = [];
+  for (let i = 0; i < PARTICLES; i++) {
+    // bias tube toward outer shell so the ring has a crisp glowing edge
+    const t = Math.pow(Math.random(), 0.6);
+    arr.push({
+      theta: Math.random() * Math.PI * 2,
+      phi: Math.random() * Math.PI * 2,
+      tube: t,
+      seed: Math.random() * 1000,
+      flick: Math.random() * Math.PI * 2,
+      flickSpd: 0.6 + Math.random() * 2.4,
     });
   }
-  verts.push(row);
+  return arr;
 }
-
-/* ---------------- drifting micro particles ---------------- */
-interface Particle {
-  ang: number;
-  rad: number;   // radius multiplier of R
-  life: number;  // 0..1
-  ttl: number;   // seconds
-  age: number;
-  size: number;
-  drift: number; // radial drift speed
-  spin: number;  // angular drift speed
-}
-const PARTICLES = 220;
 
 export const OrbCanvas = ({
   size,
