@@ -217,7 +217,8 @@ export const OrbCanvas = ({
     const R = size * 0.92;       // main ring radius
     const TUBE = size * 0.2;     // tube (thickness) radius of the ring
 
-    const particles = makeParticles();
+    const layers = makeLayers();
+    const details = makeDetails();
 
     // smoothed, theme-aware params
     let theme = readTheme();
