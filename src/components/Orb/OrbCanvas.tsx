@@ -172,7 +172,7 @@ export const OrbCanvas = ({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const dim = size * 2.9;
+    const dim = size * 3.4;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = dim * dpr;
     canvas.height = dim * dpr;
