@@ -328,9 +328,9 @@ export const OrbCanvas = ({
         const dn = (depth / R + 1) / 2; // ~0..1
         const twinkle = 0.6 + 0.4 * Math.sin(p.flick + t * p.flickSpd);
         const edge = 0.45 + 0.55 * p.tube; // outer-shell particles a touch brighter
-        let a = (0.08 + dn * 0.5) * twinkle * edge;
+        let a = (0.16 + dn * 0.42) * twinkle * edge;
         if (a < 0.012) continue;
-        const psize = (0.5 + dn * 1.2) * scale;
+        const psize = (0.6 + dn * 1.1) * scale;
 
         ctx.fillStyle = rgb(dn > 0.62 ? hi : curBase, a);
         ctx.fillRect(sx - psize * 0.5, sy - psize * 0.5, psize, psize);
