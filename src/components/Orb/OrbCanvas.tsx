@@ -121,36 +121,35 @@ function fbm(x: number, y: number): number {
   return v;
 }
 
-/* ---------------- 3D wireframe core sphere ---------------- */
-const LAT = 13;
-const LONG = 20;
-const verts: { x: number; y: number; z: number }[][] = [];
-for (let i = 0; i <= LAT; i++) {
-  const row: { x: number; y: number; z: number }[] = [];
-  const phi = (i / LAT) * Math.PI - Math.PI / 2;
-  for (let j = 0; j < LONG; j++) {
-    const theta = (j / LONG) * Math.PI * 2;
-    row.push({
-      x: Math.cos(phi) * Math.cos(theta),
-      y: Math.sin(phi),
-      z: Math.cos(phi) * Math.sin(theta),
+/* ---------------- particle energy torus ----------------
+   The aura is a dense cloud of points distributed around a torus.
+   The whole ring deforms via flowing noise so it never looks circular
+   or geometric — it breathes, stretches, splits and merges like plasma. */
+interface TorusParticle {
+  theta: number;   // angle around the main ring (0..2π)
+  phi: number;     // angle around the tube cross-section
+  tube: number;    // 0..1 distance from tube center (density falloff)
+  seed: number;    // per-particle noise seed
+  flick: number;   // twinkle phase
+  flickSpd: number;
+}
+const PARTICLES = 5200;
+function makeParticles(): TorusParticle[] {
+  const arr: TorusParticle[] = [];
+  for (let i = 0; i < PARTICLES; i++) {
+    // bias tube toward outer shell so the ring has a crisp glowing edge
+    const t = Math.pow(Math.random(), 0.6);
+    arr.push({
+      theta: Math.random() * Math.PI * 2,
+      phi: Math.random() * Math.PI * 2,
+      tube: t,
+      seed: Math.random() * 1000,
+      flick: Math.random() * Math.PI * 2,
+      flickSpd: 0.6 + Math.random() * 2.4,
     });
   }
-  verts.push(row);
+  return arr;
 }
-
-/* ---------------- drifting micro particles ---------------- */
-interface Particle {
-  ang: number;
-  rad: number;   // radius multiplier of R
-  life: number;  // 0..1
-  ttl: number;   // seconds
-  age: number;
-  size: number;
-  drift: number; // radial drift speed
-  spin: number;  // angular drift speed
-}
-const PARTICLES = 220;
 
 export const OrbCanvas = ({
   size,
@@ -173,7 +172,7 @@ export const OrbCanvas = ({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const dim = size * 2.9;
+    const dim = size * 3.4;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = dim * dpr;
     canvas.height = dim * dpr;
@@ -183,21 +182,10 @@ export const OrbCanvas = ({
 
     const cx = dim / 2;
     const cy = dim / 2;
-    const R = size * 0.32; // core sphere radius
-    const squash = 0.92;   // gentle perspective squash
+    const R = size * 0.92;       // main ring radius
+    const TUBE = size * 0.2;     // tube (thickness) radius of the ring
 
-    // particle pool
-    const newParticle = (): Particle => ({
-      ang: Math.random() * Math.PI * 2,
-      rad: 1.5 + Math.random() * 1.5,
-      life: 0,
-      ttl: 2 + Math.random() * 4,
-      age: Math.random() * 2,
-      size: 0.4 + Math.random() * 1.1,
-      drift: (Math.random() - 0.5) * 0.25,
-      spin: (Math.random() - 0.5) * 0.4,
-    });
-    const particles: Particle[] = Array.from({ length: PARTICLES }, newParticle);
+    const particles = makeParticles();
 
     // smoothed, theme-aware params
     let theme = readTheme();
@@ -217,20 +205,10 @@ export const OrbCanvas = ({
     let raf = 0;
     let themeTick = 0;
 
-    const tilt = -0.42;
+    // viewed slightly from above so the ring reads as a tilted torus
+    const tilt = -0.58;
     const cosT = Math.cos(tilt);
     const sinT = Math.sin(tilt);
-
-    // organic radius for an aura wave band — fluid, turbulent, never symmetrical
-    const waveR = (baseR: number, ang: number, layer: number, amp: number) => {
-      const nx = Math.cos(ang) * 1.4 + layer * 3.1;
-      const ny = Math.sin(ang) * 1.4 + flow * 0.25 + layer * 1.7;
-      const turb = fbm(nx + flow * 0.18, ny);
-      const slow =
-        Math.sin(ang * 2 + flow * 0.4 + layer) * 0.4 +
-        Math.sin(ang * 3 - flow * 0.3 + layer * 2.0) * 0.25;
-      return baseR + (turb * 0.9 + slow * 0.5) * amp * 0.11;
-    };
 
     const frame = (now: number) => {
       const dt = Math.min((now - last) / 1000, 0.05);
@@ -264,24 +242,24 @@ export const OrbCanvas = ({
       glowPhase += dt;
       rot += dt * curSpeed * curDir;
 
-      const amp = curWob + curLevel * 3.2;
-      const scale = 1 + curLevel * 0.09;
+      const scale = 1 + curLevel * 0.08;
       const glowPulse = 0.85 + 0.15 * Math.sin(glowPhase * 1.1);
+      // overall turbulence amplitude (reacts to mode + audio)
+      const amp = (0.5 + curWob * 0.35 + curLevel * 1.4);
 
       ctx.clearRect(0, 0, dim, dim);
       ctx.globalCompositeOperation = "lighter";
 
-      /* ---- layered volumetric glow (multiple radial layers, not one blur) ---- */
+      /* ---- soft volumetric glow behind the field ---- */
       const glows: [number, number][] = [
-        [R * 3.0, 0.05],
-        [R * 2.1, 0.07],
-        [R * 1.3, 0.10],
-        [R * 0.7, 0.16],
+        [R * 1.55, 0.045],
+        [R * 1.1, 0.06],
+        [R * 0.6, 0.05],
       ];
       for (const [gr, ga] of glows) {
         const g = ctx.createRadialGradient(cx, cy, gr * 0.05, cx, cy, gr * scale);
         g.addColorStop(0, rgb(curBase, ga * glowPulse));
-        g.addColorStop(0.5, rgb(curBase, ga * 0.35 * glowPulse));
+        g.addColorStop(0.55, rgb(curBase, ga * 0.4 * glowPulse));
         g.addColorStop(1, "rgba(0,0,0,0)");
         ctx.fillStyle = g;
         ctx.beginPath();
@@ -289,111 +267,74 @@ export const OrbCanvas = ({
         ctx.fill();
       }
 
-      /* ---- flowing aura energy waves (semi-transparent, breathing, merging) ---- */
-      const LAYERS = 6;
-      const STEPS = 160;
-      for (let l = 0; l < LAYERS; l++) {
-        const baseR = 1.45 + l * 0.24;
-        const layerSeed = l * 7.3;
-        const dir = l % 2 === 0 ? 1 : -1;
-        const rotPhase = flow * 0.12 * dir + l * 0.5;
-        ctx.beginPath();
-        for (let s = 0; s <= STEPS; s++) {
-          const ang = (s / STEPS) * Math.PI * 2 + rotPhase;
-          const rr = waveR(baseR, ang, layerSeed, amp) * R * scale;
-          const x = cx + Math.cos(ang) * rr;
-          const y = cy + Math.sin(ang) * rr * squash;
-          if (s === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-        ctx.closePath();
-        const innerFade = 1 - l / LAYERS;
-        const lineW = lerp(0.6, 2.2, Math.abs(Math.sin(flow * 0.4 + l)));
-        ctx.lineWidth = lineW;
-        ctx.strokeStyle = rgb(curBase, 0.05 + innerFade * 0.16);
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = rgb(curBase, 0.4);
-        ctx.stroke();
-        // faint fill on inner layers for volume
-        if (l < 3) {
-          ctx.fillStyle = rgb(curBase, 0.012 * (3 - l));
-          ctx.fill();
-        }
-      }
-      ctx.shadowBlur = 0;
-
-      /* ---- drifting micro particles (detail/depth, reacting to flow) ---- */
-      for (const p of particles) {
-        p.age += dt;
-        if (p.age >= p.ttl) Object.assign(p, newParticle(), { age: 0 });
-        const lifeT = p.age / p.ttl;
-        p.life = Math.sin(lifeT * Math.PI); // fade in/out
-        const turb = fbm(Math.cos(p.ang) * 2 + flow * 0.2, Math.sin(p.ang) * 2);
-        p.ang += (p.spin * 0.4 + curSpeed * 0.2 * curDir + turb * 0.15) * dt;
-        p.rad += (p.drift + turb * 0.3) * dt;
-        const rr = p.rad * R * scale;
-        const x = cx + Math.cos(p.ang) * rr;
-        const y = cy + Math.sin(p.ang) * rr * squash;
-        const a = p.life * 0.5;
-        if (a <= 0.01) continue;
-        ctx.beginPath();
-        ctx.arc(x, y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = rgb(lighten(curBase, 0.3), a);
-        ctx.fill();
-      }
-
-      /* ---- central suspended energy core ---- */
-      const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 1.05 * scale);
-      coreGrad.addColorStop(0, rgb(lighten(curAccent, 0.5), 0.55 * glowPulse));
-      coreGrad.addColorStop(0.4, rgb(curBase, 0.28));
-      coreGrad.addColorStop(0.75, rgb(curBase, 0.08));
+      /* ---- subtle suspended energy core (no wireframe, just a faint source) ---- */
+      const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.42 * scale);
+      coreGrad.addColorStop(0, rgb(lighten(curAccent, 0.5), 0.18 * glowPulse));
+      coreGrad.addColorStop(0.5, rgb(curBase, 0.06));
       coreGrad.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = coreGrad;
       ctx.beginPath();
-      ctx.arc(cx, cy, R * 1.05 * scale, 0, Math.PI * 2);
+      ctx.arc(cx, cy, R * 0.42 * scale, 0, Math.PI * 2);
       ctx.fill();
 
-      /* ---- rotating wireframe sphere inside the core ---- */
-      ctx.save();
-      const ca = Math.cos(rot * 1.5);
-      const sa = Math.sin(rot * 1.5);
-      const proj = (v: { x: number; y: number; z: number }) => {
-        const x = v.x * ca + v.z * sa;
-        const z = -v.x * sa + v.z * ca;
-        const y = v.y;
-        const y2 = y * cosT - z * sinT;
-        const z2 = y * sinT + z * cosT;
-        return { sx: cx + x * R * scale, sy: cy + y2 * R * scale, depth: z2 };
-      };
-      const projected = verts.map((row) => row.map(proj));
-      const seg = (
-        a: { sx: number; sy: number; depth: number },
-        b: { sx: number; sy: number; depth: number },
-      ) => {
-        const d = (a.depth + b.depth) / 2;
-        const alpha = 0.04 + ((d + 1) / 2) * 0.4;
-        ctx.beginPath();
-        ctx.moveTo(a.sx, a.sy);
-        ctx.lineTo(b.sx, b.sy);
-        ctx.strokeStyle = rgb(curAccent, alpha);
-        ctx.lineWidth = 0.4 + ((d + 1) / 2) * 0.45;
-        ctx.stroke();
-      };
-      ctx.shadowBlur = 6;
-      ctx.shadowColor = rgb(curAccent, 0.5);
-      for (let i = 0; i <= LAT; i++) {
-        for (let j = 0; j < LONG; j++) {
-          const a = projected[i][j];
-          const b = projected[i][(j + 1) % LONG];
-          seg(a, b);
-          if (i < LAT) {
-            const c = projected[i + 1][j];
-            seg(a, c);
-          }
-        }
+      /* ---- the living particle torus (the aura) ---- */
+      const ca = Math.cos(rot);
+      const sa = Math.sin(rot);
+      const hi = lighten(curBase, 0.45);
+
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        // slow drift around the ring so the whole structure flows
+        const theta = p.theta + flow * 0.05 * curDir;
+
+        // ---- organic ring-radius deformation (never a circle) ----
+        const n1 = fbm(Math.cos(theta) * 1.3 + p.seed * 0.01 + flow * 0.12,
+                       Math.sin(theta) * 1.3 + flow * 0.09);
+        const n2 = noise2(theta * 2.0 + flow * 0.2, p.seed * 0.02);
+        const ringDeform = 1 + (n1 * 0.55 + n2 * 0.22) * (0.35 + amp * 0.5);
+        const ringR = R * ringDeform;
+
+        // ---- tube (thickness) deformation per particle ----
+        const tubeN = fbm(p.seed * 0.05 + flow * 0.25, theta * 1.5);
+        const tubeR = TUBE * p.tube * (0.85 + tubeN * 0.45 + amp * 0.25);
+
+        // local torus coords
+        const cosTh = Math.cos(theta);
+        const sinTh = Math.sin(theta);
+        const cphi = Math.cos(p.phi + flow * 0.3);
+        const sphi = Math.sin(p.phi + flow * 0.3);
+
+        // base ring point in XZ plane + tube offset along outward & up
+        let x = (ringR + tubeR * cphi) * cosTh;
+        let z = (ringR + tubeR * cphi) * sinTh;
+        let y = tubeR * sphi;
+
+        // micro turbulence — independent jitter so particles shimmer/merge
+        const tx = noise2(p.seed + flow * 0.6, theta * 3.0) * TUBE * 0.28 * amp;
+        const ty = noise2(p.seed * 1.7 + flow * 0.55, p.phi * 2.0) * TUBE * 0.28 * amp;
+        x += tx;
+        y += ty;
+
+        // rotate around Y (spin) then tilt around X (view from above)
+        const rx = x * ca + z * sa;
+        const rz = -x * sa + z * ca;
+        const ry = y * cosT - rz * sinT;
+        const depth = y * sinT + rz * cosT; // +front / -back
+
+        const sx = cx + rx * scale;
+        const sy = cy + ry * scale;
+
+        // depth shading: front particles brighter & larger
+        const dn = (depth / R + 1) / 2; // ~0..1
+        const twinkle = 0.6 + 0.4 * Math.sin(p.flick + t * p.flickSpd);
+        const edge = 0.45 + 0.55 * p.tube; // outer-shell particles a touch brighter
+        let a = (0.16 + dn * 0.42) * twinkle * edge;
+        if (a < 0.012) continue;
+        const psize = (0.6 + dn * 1.1) * scale;
+
+        ctx.fillStyle = rgb(dn > 0.62 ? hi : curBase, a);
+        ctx.fillRect(sx - psize * 0.5, sy - psize * 0.5, psize, psize);
       }
-      ctx.shadowBlur = 0;
-      ctx.restore();
 
       ctx.globalCompositeOperation = "source-over";
       raf = requestAnimationFrame(frame);
