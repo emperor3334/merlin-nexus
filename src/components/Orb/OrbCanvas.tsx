@@ -1,188 +1,41 @@
 import { useEffect, useRef } from "react";
 
-type Mode = "standby" | "thinking" | "listening" | "speaking";
-type RGB = [number, number, number];
-
-/* ---------------- color helpers ---------------- */
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
-const rgb = (c: RGB, a: number) =>
-  `rgba(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])},${a})`;
-const mix = (a: RGB, b: RGB, t: number): RGB => [
-  lerp(a[0], b[0], t),
-  lerp(a[1], b[1], t),
-  lerp(a[2], b[2], t),
-];
-const lighten = (c: RGB, t: number): RGB => mix(c, [255, 255, 255], t);
-
-// parse #hex / rgb() / rgba() / oklch() into an approximate RGB
-function parseColor(input: string, fallback: RGB): RGB {
-  if (!input) return fallback;
-  const s = input.trim();
-  if (s.startsWith("#")) {
-    let h = s.slice(1);
-    if (h.length === 3) h = h.split("").map((x) => x + x).join("");
-    const n = parseInt(h, 16);
-    if (Number.isNaN(n)) return fallback;
-    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+/* ------------------------------ noise ------------------------------ */
+function makeNoise2D(seed = 1337) {
+  const p = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) p[i] = i;
+  let s = seed >>> 0 || 1;
+  for (let i = 255; i > 0; i--) {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    const j = s % (i + 1);
+    const t = p[i];
+    p[i] = p[j];
+    p[j] = t;
   }
-  const m = s.match(/rgba?\(([^)]+)\)/);
-  if (m) {
-    const p = m[1].split(",").map((x) => parseFloat(x));
-    if (p.length >= 3) return [p[0], p[1], p[2]];
-  }
-  // oklch() — render to a probe element so the browser converts it for us
-  try {
-    const probe = document.createElement("span");
-    probe.style.color = s;
-    document.body.appendChild(probe);
-    const computed = getComputedStyle(probe).color;
-    document.body.removeChild(probe);
-    const cm = computed.match(/rgba?\(([^)]+)\)/);
-    if (cm) {
-      const p = cm[1].split(",").map((x) => parseFloat(x));
-      return [p[0], p[1], p[2]];
-    }
-  } catch {
-    /* ignore */
-  }
-  return fallback;
+  const perm = new Uint8Array(512);
+  for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
+  const fade = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+  const hash = (xi: number, yi: number) =>
+    (perm[(xi + perm[yi & 255]) & 255] / 255) * 2 - 1;
+  return (x: number, y: number) => {
+    const xi = Math.floor(x);
+    const yi = Math.floor(y);
+    const xf = x - xi;
+    const yf = y - yi;
+    const u = fade(xf);
+    const v = fade(yf);
+    const aa = hash(xi, yi);
+    const ba = hash(xi + 1, yi);
+    const ab = hash(xi, yi + 1);
+    const bb = hash(xi + 1, yi + 1);
+    return lerp(lerp(aa, ba, u), lerp(ab, bb, u), v);
+  };
 }
 
-// read the live UI palette from CSS tokens
-function readTheme(): { base: RGB; success: RGB; warning: RGB; core: RGB } {
-  const cs = getComputedStyle(document.documentElement);
-  const base = parseColor(cs.getPropertyValue("--cyan"), [0, 200, 255]);
-  const core = parseColor(cs.getPropertyValue("--orb-core"), base);
-  const success = parseColor(cs.getPropertyValue("--success"), [0, 255, 170]);
-  const warning = parseColor(cs.getPropertyValue("--warning"), [255, 170, 0]);
-  return { base, success, warning, core };
-}
+const lp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-/* derive per-mode aura/accent colors from the live UI palette */
-interface ModeCfg {
-  base: RGB;   // aura color
-  accent: RGB; // core / sphere wire color
-  speed: number;
-  wob: number;
-  dir: number; // sphere rotation direction (+1 / -1)
-}
-function modeConfig(mode: Mode, theme: ReturnType<typeof readTheme>): ModeCfg {
-  const { base, success, core } = theme;
-  switch (mode) {
-    case "thinking":
-      return { base: lighten(base, 0.25), accent: lighten(core, 0.55), speed: 0.42, wob: 1.7, dir: -1 };
-    case "listening":
-      return { base: mix(base, success, 0.7), accent: lighten(mix(core, success, 0.6), 0.4), speed: 0.24, wob: 2.1, dir: 1 };
-    case "speaking":
-      return { base: lighten(base, 0.55), accent: lighten(core, 0.7), speed: 0.32, wob: 2.4, dir: -1 };
-    default:
-      return { base, accent: lighten(core, 0.45), speed: 0.12, wob: 1.1, dir: 1 };
-  }
-}
-
-/* ---------------- lightweight value noise (organic, non-repeating) ---------------- */
-const NSIZE = 256;
-const perm = new Uint8Array(NSIZE * 2);
-(() => {
-  const p = Array.from({ length: NSIZE }, (_, i) => i);
-  for (let i = NSIZE - 1; i > 0; i--) {
-    const j = (Math.random() * (i + 1)) | 0;
-    [p[i], p[j]] = [p[j], p[i]];
-  }
-  for (let i = 0; i < NSIZE * 2; i++) perm[i] = p[i & (NSIZE - 1)];
-})();
-const fade = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
-const grad1 = (h: number, x: number) => ((h & 1) === 0 ? x : -x);
-// smooth 2D value/gradient noise in [-1,1]
-function noise2(x: number, y: number): number {
-  const X = Math.floor(x) & (NSIZE - 1);
-  const Y = Math.floor(y) & (NSIZE - 1);
-  const xf = x - Math.floor(x);
-  const yf = y - Math.floor(y);
-  const u = fade(xf);
-  const v = fade(yf);
-  const aa = perm[perm[X] + Y];
-  const ab = perm[perm[X] + Y + 1];
-  const ba = perm[perm[X + 1] + Y];
-  const bb = perm[perm[X + 1] + Y + 1];
-  const x1 = lerp(grad1(aa, xf), grad1(ba, xf - 1), u);
-  const x2 = lerp(grad1(ab, xf), grad1(bb, xf - 1), u);
-  return lerp(x1, x2, v);
-}
-// fractal noise for richer turbulence
-function fbm(x: number, y: number): number {
-  let v = 0, amp = 0.5, freq = 1;
-  for (let i = 0; i < 4; i++) {
-    v += amp * noise2(x * freq, y * freq);
-    freq *= 2;
-    amp *= 0.5;
-  }
-  return v;
-}
-
-/* ---------------- flowing energy membrane ----------------
-   The aura is a stack of continuous closed loops (ribbons) that each
-   deform independently via flowing FBM noise. Stroked with additive
-   blending and many overlapping layers, they read as a connected,
-   living plasma membrane rather than a cloud of independent points.   */
-interface MembraneLayer {
-  seed: number;     // unique noise seed
-  baseR: number;    // 0..1 radius factor of this layer
-  amp: number;      // deformation amplitude factor
-  freqA: number;    // primary angular frequency
-  freqB: number;    // secondary angular frequency
-  speed: number;    // flow speed factor
-  thick: number;    // stroke thickness factor
-  alpha: number;    // base opacity
-  z: number;        // -1..1 depth offset for tilt parallax
-  phase: number;    // starting phase
-}
-const LAYERS = 26;        // many overlapping membrane sheets => density
-const SEGMENTS = 200;     // smooth continuous loop resolution
-function makeLayers(): MembraneLayer[] {
-  const arr: MembraneLayer[] = [];
-  for (let i = 0; i < LAYERS; i++) {
-    const u = i / (LAYERS - 1);
-    arr.push({
-      seed: Math.random() * 1000,
-      baseR: 0.72 + u * 0.34 + (Math.random() - 0.5) * 0.05,
-      amp: 0.12 + Math.random() * 0.22,
-      freqA: 2 + Math.floor(Math.random() * 4),
-      freqB: 5 + Math.floor(Math.random() * 6),
-      speed: 0.5 + Math.random() * 1.1,
-      thick: 0.6 + Math.random() * 1.6,
-      alpha: 0.06 + Math.random() * 0.10,
-      z: (Math.random() - 0.5) * 2,
-      phase: Math.random() * Math.PI * 2,
-    });
-  }
-  return arr;
-}
-
-/* light secondary particle detail (<10% of the look) */
-interface Detail {
-  theta: number;
-  r: number;
-  seed: number;
-  flick: number;
-  flickSpd: number;
-}
-const DETAILS = 360;
-function makeDetails(): Detail[] {
-  const arr: Detail[] = [];
-  for (let i = 0; i < DETAILS; i++) {
-    arr.push({
-      theta: Math.random() * Math.PI * 2,
-      r: 0.7 + Math.random() * 0.4,
-      seed: Math.random() * 1000,
-      flick: Math.random() * Math.PI * 2,
-      flickSpd: 0.6 + Math.random() * 2.4,
-    });
-  }
-  return arr;
-}
-
+/* ----------------------------- component --------------------------- */
 export const OrbCanvas = ({
   size,
   state,
@@ -192,204 +45,544 @@ export const OrbCanvas = ({
   state: string;
   level: number;
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stateRef = useRef(state);
   const levelRef = useRef(level);
   stateRef.current = state;
   levelRef.current = level;
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const canvas = canvasRef.current!;
+    const ctx = canvas.getContext("2d", { alpha: true })!;
+    let raf = 0;
 
     const dim = size * 3.4;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = dim * dpr;
-    canvas.height = dim * dpr;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.floor(dim * dpr);
+    canvas.height = Math.floor(dim * dpr);
     canvas.style.width = `${dim}px`;
     canvas.style.height = `${dim}px`;
-    ctx.scale(dpr, dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const cx = dim / 2;
-    const cy = dim / 2;
-    const R = size * 0.92;       // main ring radius
-    const TUBE = size * 0.2;     // tube (thickness) radius of the ring
+    const width = dim;
+    const height = dim;
 
-    const layers = makeLayers();
-    const details = makeDetails();
+    const noiseLow = makeNoise2D(11);
+    const noiseMid = makeNoise2D(73);
+    const noiseCore = makeNoise2D(404);
+    const noiseAura = makeNoise2D(919);
 
-    // smoothed, theme-aware params
-    let theme = readTheme();
-    let cfg = modeConfig("standby", theme);
-    const curBase: RGB = [...cfg.base] as RGB;
-    const curAccent: RGB = [...cfg.accent] as RGB;
-    let curSpeed = cfg.speed;
-    let curWob = cfg.wob;
-    let curDir = cfg.dir;
-    let curLevel = 0;
+    /* ----- ribbons (the waves) ----- */
+    type Ribbon = {
+      rOffset: number;
+      phase: number;
+      phaseSpd: number;
+      seed: number;
+      z: number;
+      amp: number;
+      microAmp: number;
+      thickness: number;
+    };
+    const minDim = Math.min(width, height);
+    const ribbonCount = minDim < 500 ? 88 : minDim < 900 ? 112 : 136;
+    const ribbons: Ribbon[] = new Array(ribbonCount);
+    for (let i = 0; i < ribbonCount; i++) {
+      ribbons[i] = {
+        rOffset: (Math.random() - 0.5) * 0.52,
+        phase: Math.random() * Math.PI * 2,
+        phaseSpd: (Math.random() - 0.5) * 0.12,
+        seed: Math.random() * 1000,
+        z: Math.random(),
+        amp: 0.85 + Math.random() * 0.35,
+        microAmp: 0.004 + Math.random() * 0.012,
+        thickness: 0.24 + Math.random() * 0.06,
+      };
+    }
 
-    let rot = 0;
-    let flow = 0;
-    let glowPhase = 0;
-    let t = 0;
-    let last = performance.now();
-    let raf = 0;
-    let themeTick = 0;
+    type Haze = {
+      a0: number;
+      rOff: number;
+      drift: number;
+      tw: number;
+      twSpd: number;
+      size: number;
+      bright: number;
+      z: number;
+    };
+    const area = width * height;
+    const hazeCount = Math.max(5200, Math.min(13000, Math.floor(area / 150)));
+    const haze: Haze[] = new Array(hazeCount);
+    for (let i = 0; i < hazeCount; i++) {
+      const band = Math.random() * 2 - 1;
+      haze[i] = {
+        a0: Math.random() * Math.PI * 2,
+        rOff: band * 0.32,
+        drift: (Math.random() - 0.5) * 0.06,
+        tw: Math.random() * Math.PI * 2,
+        twSpd: 0.6 + Math.random() * 2.8,
+        size: 0.22 + Math.random() * 0.28,
+        bright: 0.16 + Math.random() * 0.28,
+        z: Math.random(),
+      };
+    }
 
-    // viewed slightly from above so the ring reads as a tilted torus
-    const tilt = -0.58;
-    const cosT = Math.cos(tilt);
-    const sinT = Math.sin(tilt);
+    /* ----- core particles: volumetric sphere ----- */
+    type CoreP = {
+      x: number;
+      y: number;
+      z: number;
+      rho: number;
+      spin: number;
+      phase: number;
+      tw: number;
+      twSpd: number;
+      size: number;
+      bright: number;
+      ang0: number;
+    };
+    const coreCount = 11000;
+    const coreParticles: CoreP[] = new Array(coreCount);
+    for (let i = 0; i < coreCount; i++) {
+      const shellBias = Math.random() < 0.62;
+      const rho = shellBias ? 0.72 + Math.random() * 0.28 : Math.pow(Math.random(), 0.62);
+      const z = Math.random() * 2 - 1;
+      const a = Math.random() * Math.PI * 2;
+      const xy = Math.sqrt(Math.max(0, 1 - z * z));
+      coreParticles[i] = {
+        x: Math.cos(a) * xy,
+        y: Math.sin(a) * xy,
+        z,
+        rho,
+        spin: 0.35 + Math.random() * 0.9,
+        phase: Math.random() * Math.PI * 2,
+        tw: Math.random() * Math.PI * 2,
+        twSpd: 0.35 + Math.random() * 1.35,
+        size: 0.28 + Math.random() * 0.78,
+        bright: 0.1 + Math.random() * 0.48,
+        ang0: a,
+      };
+    }
 
-    const frame = (now: number) => {
-      const dt = Math.min((now - last) / 1000, 0.05);
+    type CoreVein = {
+      kind: number;
+      u: number;
+      band: number;
+      phase: number;
+      twist: number;
+      bright: number;
+      size: number;
+    };
+    const veinCount = 7500;
+    const coreVeins: CoreVein[] = new Array(veinCount);
+    for (let i = 0; i < veinCount; i++) {
+      coreVeins[i] = {
+        kind: Math.random() < 0.58 ? 0 : 1,
+        u: Math.random(),
+        band: Math.random() * 2 - 1,
+        phase: Math.random() * Math.PI * 2,
+        twist: (Math.random() - 0.5) * 1.4,
+        bright: 0.12 + Math.random() * 0.42,
+        size: 0.28 + Math.random() * 0.58,
+      };
+    }
+
+    /* ----- aura particles ----- */
+    type AuraP = {
+      a0: number;
+      rRel: number;
+      layer: number;
+      drift: number;
+      radialDrift: number;
+      swirl: number;
+      tw: number;
+      twSpd: number;
+      size: number;
+      bright: number;
+      seed: number;
+    };
+    const auraCount = Math.max(3600, Math.min(7500, Math.floor(area / 300)));
+    const auraParticles: AuraP[] = new Array(auraCount);
+    for (let i = 0; i < auraCount; i++) {
+      const layer = Math.floor(Math.random() * 4);
+      const rRel = Math.pow(Math.random(), 0.75 + layer * 0.12);
+      auraParticles[i] = {
+        a0: Math.random() * Math.PI * 2,
+        rRel,
+        layer,
+        drift: (Math.random() - 0.5) * (0.025 + layer * 0.012),
+        radialDrift: (Math.random() - 0.5) * 0.035,
+        swirl: (Math.random() - 0.5) * 0.34,
+        tw: Math.random() * Math.PI * 2,
+        twSpd: 0.25 + Math.random() * 1.8,
+        size: 0.35 + Math.random() * 1.05,
+        bright: 0.08 + Math.random() * 0.36,
+        seed: Math.random() * 1000,
+      };
+    }
+
+    type Current = {
+      a0: number;
+      rRel: number;
+      span: number;
+      bend: number;
+      layer: number;
+      phase: number;
+      drift: number;
+      bright: number;
+      dots: number;
+    };
+    const currents: Current[] = new Array(90);
+    for (let i = 0; i < currents.length; i++) {
+      currents[i] = {
+        a0: Math.random() * Math.PI * 2,
+        rRel: Math.random(),
+        span: 0.1 + Math.random() * 0.28,
+        bend: (Math.random() - 0.5) * 0.85,
+        layer: Math.floor(Math.random() * 4),
+        phase: Math.random() * Math.PI * 2,
+        drift: (Math.random() - 0.5) * 0.045,
+        bright: 0.05 + Math.random() * 0.16,
+        dots: 26 + Math.floor(Math.random() * 34),
+      };
+    }
+
+    const baseR = size * 0.92;
+    const cx = width / 2;
+    const cy = height / 2;
+    const start = performance.now();
+    let last = start;
+
+    // smoothed mode-driven parameters
+    let waveSpeed = 1; // ribbon/wave rotation multiplier
+    let waveRange = 1; // wave radial extent (shrinks in processing)
+    let uniform = 0; // 0 = random core, 1 = uniform clockwise core spin (listening)
+    let speakLevel = 0; // speaking inflation
+
+    let rotation = 0; // accumulated wave rotation
+    let coreSpin = 0; // accumulated core drift
+    let uniformAng = 0; // accumulated uniform core spin
+
+    const deformGlobal = (angle: number, t: number) => {
+      const cx1 = Math.cos(angle) * 1.4;
+      const sy1 = Math.sin(angle) * 1.4;
+      const cx2 = Math.cos(angle * 2 + 0.6) * 1.1;
+      const sy2 = Math.sin(angle * 2 + 0.6) * 1.1;
+      const a = noiseLow(cx1 + t * 0.07, sy1 - t * 0.05);
+      const b = noiseMid(cx2 + t * 0.18, sy2 + t * 0.12);
+      return a * 0.7 + b * 0.3;
+    };
+
+    const draw = (now: number) => {
+      const t = (now - start) / 1000;
+      const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
 
-      // re-read theme a few times per second so palette changes transition smoothly
-      themeTick += dt;
-      if (themeTick > 0.4) {
-        themeTick = 0;
-        theme = readTheme();
+      // resolve current mode -> targets
+      const mode = stateRef.current;
+      const lvl = Math.max(0, Math.min(1, levelRef.current || 0));
+      let tSpeed = 1, tRange = 1, tUniform = 0, tSpeak = 0;
+      if (mode === "thinking") {
+        tSpeed = 7;        // waves spin fast to the right
+        tRange = 0.82;     // shrink the wave range
+      } else if (mode === "listening") {
+        tSpeed = 1;        // gentle breathing rotation
+        tUniform = 1;      // sphere dots lock into clockwise spin
+      } else if (mode === "speaking") {
+        tSpeed = 1.3;
+        tSpeak = lvl;      // waves inflate with the voice
       }
-      const mode: Mode = (["standby", "thinking", "listening", "speaking"] as Mode[]).includes(
-        stateRef.current as Mode,
-      )
-        ? (stateRef.current as Mode)
-        : "standby";
-      cfg = modeConfig(mode, theme);
+      const k = 1 - Math.pow(0.0015, dt);
+      waveSpeed = lp(waveSpeed, tSpeed, k);
+      waveRange = lp(waveRange, tRange, k);
+      uniform = lp(uniform, tUniform, k);
+      speakLevel = lp(speakLevel, tSpeak, 0.18);
 
-      const k = 1 - Math.pow(0.002, dt);
-      for (let i = 0; i < 3; i++) {
-        curBase[i] = lerp(curBase[i], cfg.base[i], k);
-        curAccent[i] = lerp(curAccent[i], cfg.accent[i], k);
-      }
-      curSpeed = lerp(curSpeed, cfg.speed, k);
-      curWob = lerp(curWob, cfg.wob, k);
-      curDir = lerp(curDir, cfg.dir, k * 0.5);
-      curLevel = lerp(curLevel, levelRef.current || 0, 0.16);
+      // breathing pulse
+      const pulse = Math.sin((t / 4) * Math.PI * 2);
+      const breathe = 1 + pulse * 0.015;
+      const brightPulse = 1 + pulse * 0.08;
+      // speaking adds an inflate/deflate pulse on top of breathing
+      const inflate = 1 + speakLevel * 0.26 + speakLevel * 0.12 * Math.sin(t * 11);
+      const waveScale = breathe * waveRange * inflate;
+      const R = baseR * waveScale;
 
-      t += dt;
-      flow += dt * (0.5 + curSpeed * 1.6);
-      glowPhase += dt;
-      rot += dt * curSpeed * curDir;
+      const coreR = baseR * 0.45 * breathe; // sphere unaffected by wave range
+      const gapInner = coreR * 1.05;
+      const gapOuter = R * 0.92;
+      const gap = gapOuter - gapInner;
 
-      const scale = 1 + curLevel * 0.08;
-      const glowPulse = 0.85 + 0.15 * Math.sin(glowPhase * 1.1);
-      // overall turbulence amplitude (reacts to mode + audio)
-      const amp = (0.5 + curWob * 0.35 + curLevel * 1.4);
+      // accumulate rotations
+      rotation += dt * (Math.PI / 90) * 12 * waveSpeed;
+      coreSpin += dt * ((Math.PI * 2) / 68);
+      uniformAng += dt * 0.55;
 
-      ctx.clearRect(0, 0, dim, dim);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.clearRect(0, 0, width, height);
       ctx.globalCompositeOperation = "lighter";
 
-      /* ---- soft volumetric glow behind the field ---- */
-      const glows: [number, number][] = [
-        [R * 1.55, 0.045],
-        [R * 1.1, 0.06],
-        [R * 0.6, 0.05],
-      ];
-      for (const [gr, ga] of glows) {
-        const g = ctx.createRadialGradient(cx, cy, gr * 0.05, cx, cy, gr * scale);
-        g.addColorStop(0, rgb(curBase, ga * glowPulse));
-        g.addColorStop(0.55, rgb(curBase, ga * 0.4 * glowPulse));
+      // 2) Atmospheric haze (darker blue base so waves stand out)
+      {
+        const g = ctx.createRadialGradient(cx, cy, R * 0.15, cx, cy, R * 2.3);
+        g.addColorStop(0, `rgba(0, 90, 120, ${0.03 * brightPulse})`);
+        g.addColorStop(0.35, `rgba(0, 65, 95, ${0.014 * brightPulse})`);
         g.addColorStop(1, "rgba(0,0,0,0)");
         ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(cx, cy, gr * scale, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.fillRect(0, 0, width, height);
       }
 
-      /* ---- subtle suspended energy core (no wireframe, just a faint source) ---- */
-      const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.42 * scale);
-      coreGrad.addColorStop(0, rgb(lighten(curAccent, 0.5), 0.18 * glowPulse));
-      coreGrad.addColorStop(0.5, rgb(curBase, 0.06));
-      coreGrad.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = coreGrad;
-      ctx.beginPath();
-      ctx.arc(cx, cy, R * 0.42 * scale, 0, Math.PI * 2);
-      ctx.fill();
+      // 3) Aura fog (darkened)
+      {
+        const ga = ctx.createRadialGradient(cx, cy, coreR * 0.25, cx, cy, R * 1.04);
+        ga.addColorStop(0, `rgba(0, 120, 150, ${0.035 * brightPulse})`);
+        ga.addColorStop(0.32, `rgba(0, 95, 120, ${0.014 * brightPulse})`);
+        ga.addColorStop(0.66, `rgba(0, 70, 95, ${0.007 * brightPulse})`);
+        ga.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = ga;
+        ctx.fillRect(0, 0, width, height);
 
-      /* ---- the living energy membrane (continuous flowing loops) ---- */
-      const ca = Math.cos(rot);
-      const sa = Math.sin(rot);
-      const hi = lighten(curBase, 0.5);
-
-      // project a 3D ring point (in the tilted/spun torus space) to screen
-      const project = (theta: number, radius: number, zOff: number) => {
-        const cosTh = Math.cos(theta);
-        const sinTh = Math.sin(theta);
-        let x = radius * cosTh;
-        let z = radius * sinTh;
-        let y = zOff;
-        const rx = x * ca + z * sa;
-        const rz = -x * sa + z * ca;
-        const ry = y * cosT - rz * sinT;
-        const depth = y * sinT + rz * cosT; // +front / -back
-        return {
-          sx: cx + rx * scale,
-          sy: cy + ry * scale,
-          dn: (depth / R + 1) / 2,
-        };
-      };
-
-      // per-layer radius at a given angle — organic, non-symmetric deformation
-      const layerRadius = (L: MembraneLayer, theta: number, fl: number) => {
-        // independent multi-octave flow: each angular region moves on its own
-        const n1 = fbm(
-          Math.cos(theta) * L.freqA * 0.5 + L.seed * 0.013,
-          Math.sin(theta) * L.freqA * 0.5 + fl * L.speed * 0.5,
-        );
-        const n2 = noise2(theta * L.freqB + L.seed, fl * L.speed * 0.8 + L.seed * 0.07);
-        const n3 = noise2(theta * (L.freqA + 1) - fl * L.speed * 0.4, L.seed * 0.2);
-        const deform = (n1 * 0.6 + n2 * 0.3 + n3 * 0.2) * L.amp * (0.6 + amp * 0.8);
-        return R * L.baseR * (1 + deform);
-      };
-
-      for (let li = 0; li < layers.length; li++) {
-        const L = layers[li];
-        const fl = flow + L.phase;
-        const zOff = L.z * TUBE * 1.4;
-        ctx.beginPath();
-        let frontSum = 0;
-        for (let s = 0; s <= SEGMENTS; s++) {
-          const theta = (s / SEGMENTS) * Math.PI * 2 + flow * 0.04 * curDir;
-          const rr = layerRadius(L, theta, fl);
-          const pt = project(theta, rr, zOff);
-          frontSum += pt.dn;
-          if (s === 0) ctx.moveTo(pt.sx, pt.sy);
-          else ctx.lineTo(pt.sx, pt.sy);
+        for (let i = 0; i < 16; i++) {
+          const h = Math.sin(i * 91.37) * 43758.5453;
+          const f = h - Math.floor(h);
+          const a = f * Math.PI * 2 + noiseAura(i * 0.13, t * 0.045) * 0.45;
+          const rr = coreR * 1.15 + (0.08 + ((Math.sin(i * 37.1) + 1) * 0.46)) * gap;
+          const drift = noiseAura(Math.cos(a) * 0.7 + i, Math.sin(a) * 0.7 - t * 0.035);
+          const x = cx + Math.cos(a + drift * 0.35) * rr;
+          const y = cy + Math.sin(a - drift * 0.2) * rr;
+          const rad = R * (0.14 + ((Math.sin(i * 17.27) + 1) * 0.075));
+          const pg = ctx.createRadialGradient(x, y, 0, x, y, rad);
+          pg.addColorStop(0, `rgba(40, 150, 170, ${0.016 * brightPulse})`);
+          pg.addColorStop(0.55, `rgba(0, 110, 130, ${0.009 * brightPulse})`);
+          pg.addColorStop(1, "rgba(0,0,0,0)");
+          ctx.fillStyle = pg;
+          ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2);
         }
-        ctx.closePath();
-        const front = frontSum / (SEGMENTS + 1);
-        const col = front > 0.55 ? mix(curBase, hi, (front - 0.55) * 2) : curBase;
-        ctx.strokeStyle = rgb(col, L.alpha * (0.5 + front) * glowPulse);
-        ctx.lineWidth = L.thick * scale;
-        ctx.stroke();
       }
 
-      /* ---- secondary particle detail (<10% of the look) ---- */
-      for (let i = 0; i < details.length; i++) {
-        const d = details[i];
-        const theta = d.theta + flow * 0.05 * curDir;
-        const n = fbm(Math.cos(theta) * 1.4 + d.seed * 0.01 + flow * 0.1,
-                      Math.sin(theta) * 1.4 + flow * 0.08);
-        const rr = R * d.r * (1 + n * 0.28 * (0.6 + amp * 0.6));
-        const zOff = (noise2(d.seed, flow * 0.4) ) * TUBE * 1.2;
-        const pt = project(theta, rr, zOff);
-        const twinkle = 0.5 + 0.5 * Math.sin(d.flick + t * d.flickSpd);
-        const a = (0.1 + pt.dn * 0.25) * twinkle;
-        if (a < 0.01) continue;
-        const psize = (0.5 + pt.dn * 0.9) * scale;
-        ctx.fillStyle = rgb(pt.dn > 0.6 ? hi : curBase, a);
-        ctx.fillRect(pt.sx - psize * 0.5, pt.sy - psize * 0.5, psize, psize);
+      // 4) Aura particles — wave dots: bright (like sphere) but small
+      for (let i = 0; i < auraParticles.length; i++) {
+        const p = auraParticles[i];
+        const layerPhase = p.layer * 0.73;
+        const flow = noiseAura(
+          Math.cos(p.a0 + layerPhase) * 1.6 + p.seed * 0.006 + t * 0.025,
+          Math.sin(p.a0 - layerPhase) * 1.6 - t * 0.045
+        );
+        const curl = noiseMid(
+          Math.cos(p.a0) * 2.2 + p.seed * 0.004,
+          Math.sin(p.a0) * 2.2 + t * 0.05 + p.layer
+        );
+        const localPulse = Math.sin(t * (0.13 + p.layer * 0.04) + p.tw) * 0.028;
+        const a = p.a0 + p.drift * t + p.swirl * flow + curl * 0.1 + rotation * (0.08 + p.layer * 0.025);
+        const rr = gapInner + (p.rRel + flow * 0.055 + p.radialDrift * Math.sin(t * 0.18 + p.tw) + localPulse) * gap;
+        if (rr < gapInner * 0.9 || rr > gapOuter * 1.05) continue;
+        const parallax = (p.layer - 1.5) * 1.8;
+        const x = cx + Math.cos(a) * rr + parallax;
+        const y = cy + Math.sin(a) * rr - parallax * 0.45;
+        const tw = 0.45 + 0.55 * Math.sin(p.tw + t * p.twSpd + flow * 2.2);
+        const edgeFade =
+          Math.min(1, (rr - gapInner * 0.96) / (gap * 0.23)) *
+          Math.min(1, (gapOuter * 1.04 - rr) / (gap * 0.3));
+        const density = 0.45 + 0.55 * Math.max(0, noiseAura(x * 0.012 + t * 0.02, y * 0.012 - p.seed * 0.01));
+        // brightened to match the sphere dots
+        const alpha = (p.bright + 0.22) * tw * density * brightPulse * Math.max(0, edgeFade) * (0.62 + p.layer * 0.1);
+        ctx.fillStyle = `rgba(${130 + p.layer * 22}, 255, 255, ${alpha})`;
+        const sz = p.size * (0.5 + p.layer * 0.1); // smaller than sphere dots
+        ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
+      }
+
+      // 5) Particle plasma currents
+      for (let i = 0; i < currents.length; i++) {
+        const c = currents[i];
+        for (let k2 = 0; k2 < c.dots; k2++) {
+          const u = k2 / (c.dots - 1);
+          const alive = 0.45 + 0.55 * Math.sin(c.phase + t * 0.22 + u * Math.PI * 2);
+          const local = c.rRel + (u - 0.5) * c.span;
+          const rr = gapInner + Math.max(0.02, Math.min(0.98, local)) * gap;
+          const n = noiseAura(Math.cos(c.a0) * 1.4 + u * 1.6, Math.sin(c.a0) * 1.4 - t * 0.06 + i);
+          const a = c.a0 + c.drift * t + c.bend * (u - 0.5) + n * 0.22 + rotation * 0.12;
+          const fade = Math.sin(Math.PI * u) * alive;
+          if (fade <= 0.08) continue;
+          const x = cx + Math.cos(a) * rr + (c.layer - 1.5) * 2.2;
+          const y = cy + Math.sin(a) * rr - (c.layer - 1.5) * 0.8;
+          const alpha = (c.bright + 0.12) * fade * brightPulse * 0.6;
+          ctx.fillStyle = `rgba(160, 255, 255, ${alpha})`;
+          const sz = 0.4 + c.layer * 0.08 + fade * 0.35;
+          ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
+        }
+      }
+
+      // 6) Outer ring bloom (darkened under-wave blue)
+      {
+        const g = ctx.createRadialGradient(cx, cy, R * 0.7, cx, cy, R * 1.4);
+        g.addColorStop(0, "rgba(0,90,110,0)");
+        g.addColorStop(0.55, `rgba(0, 130, 155, ${0.05 * brightPulse})`);
+        g.addColorStop(0.78, `rgba(0, 150, 170, ${0.028 * brightPulse})`);
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      // 7) Broken filament wave dots (bright, small)
+      for (let si = 0; si < 10; si++) {
+        const phase = si * 0.7 + t * 0.12;
+        const rOff = (si - 5) * R * 0.014;
+        for (let i = 0; i < 300; i++) {
+          const u = i / 300;
+          const a = u * Math.PI * 2 + rotation + phase * 0.05;
+          const d = deformGlobal(a + phase, t);
+          const broken = noiseMid(Math.cos(a) * 4 + si, Math.sin(a) * 4 - t * 0.08);
+          if (broken < -0.35) continue;
+          const rr = R + d * R * 0.08 + rOff + broken * R * 0.006;
+          const x = cx + Math.cos(a) * rr;
+          const y = cy + Math.sin(a) * rr;
+          const fade = 0.35 + Math.max(0, broken) * 0.75;
+          ctx.fillStyle = `rgba(190, 255, 255, ${0.16 * fade * brightPulse})`;
+          const sz = 0.5 + fade * 0.55;
+          ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
+        }
+      }
+
+      // 8) Ribbon stack (the bright waves)
+      const samplesPerRibbon = 460;
+      for (let ri = 0; ri < ribbons.length; ri++) {
+        const rb = ribbons[ri];
+        const rbPhase = rb.phase + t * rb.phaseSpd;
+        const zAlpha = 0.25 + rb.z * 0.85;
+        const baseAlpha = 0.8 * zAlpha * brightPulse;
+        const px = cx + (rb.z - 0.5) * 6;
+        const py = cy + (rb.z - 0.5) * 3;
+
+        for (let i = 0; i < samplesPerRibbon; i++) {
+          const a = (i / samplesPerRibbon) * Math.PI * 2 + rotation + rbPhase * 0.02;
+          const dG = deformGlobal(a, t);
+          const micro =
+            noiseMid(
+              Math.cos(a) * 3 + rb.seed,
+              Math.sin(a) * 3 - t * 0.4 + rb.seed
+            ) * rb.microAmp;
+          const rr =
+            R * (1 + rb.rOffset) + dG * R * 0.075 * rb.amp + micro * R * 8;
+          const x = px + Math.cos(a) * rr;
+          const y = py + Math.sin(a) * rr;
+          const tw = 0.7 + 0.3 * Math.sin(a * 7 + t * 2 + rb.seed);
+          const alpha = baseAlpha * tw;
+          ctx.fillStyle = `rgba(235, 255, 255, ${alpha})`;
+          const sz = rb.thickness;
+          ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
+        }
+      }
+
+      // 9) Haze particles around the ring
+      for (let i = 0; i < haze.length; i++) {
+        const p = haze[i];
+        const a = p.a0 + rotation + p.drift * t;
+        const dG = deformGlobal(a, t);
+        const rr = R + dG * R * 0.06 + p.rOff * R;
+        const x = cx + (p.z - 0.5) * 6 + Math.cos(a) * rr;
+        const y = cy + (p.z - 0.5) * 3 + Math.sin(a) * rr;
+        const tw = 0.5 + 0.5 * Math.sin(p.tw + t * p.twSpd);
+        const a2 = p.bright * tw * brightPulse * (0.4 + p.z * 0.6);
+        ctx.fillStyle = `rgba(190, 255, 255, ${a2})`;
+        const sz = p.size;
+        ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
+      }
+
+      // 10) === CORE === particle sphere
+      {
+        const rotY = coreSpin;
+        const rotX = Math.sin(t * 0.021) * 0.34 + 0.18;
+        const cosY = Math.cos(rotY);
+        const sinY = Math.sin(rotY);
+        const cosX = Math.cos(rotX);
+        const sinX = Math.sin(rotX);
+        const project = (x0: number, y0: number, z0: number, wobble: number) => {
+          const x1 = x0 * cosY + z0 * sinY;
+          const z1 = -x0 * sinY + z0 * cosY;
+          const y1 = y0 * cosX - z1 * sinX;
+          const z2 = y0 * sinX + z1 * cosX;
+          const scale3d = 0.92 + z2 * 0.12 + wobble;
+          return {
+            x: cx + x1 * coreR * scale3d,
+            y: cy + y1 * coreR * scale3d,
+            z: z2,
+            edge: Math.sqrt(x1 * x1 + y1 * y1),
+          };
+        };
+
+        // faint internal mist
+        for (let i = 0; i < 22; i++) {
+          const a = i * 2.399963 + noiseCore(i * 0.1, t * 0.025) * 0.5;
+          const rr = Math.sqrt((i % 29) / 29) * coreR * 1.18;
+          const x = cx + Math.cos(a) * rr;
+          const y = cy + Math.sin(a) * rr * 0.92;
+          const rad = coreR * (0.12 + ((i * 17) % 11) * 0.012);
+          const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
+          g.addColorStop(0, `rgba(80,210,225,${0.04 * brightPulse})`);
+          g.addColorStop(1, "rgba(0,200,220,0)");
+          ctx.fillStyle = g;
+          ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+        }
+
+        // suspended particles — random circulation, or uniform clockwise (listening)
+        for (let i = 0; i < coreParticles.length; i++) {
+          const cp = coreParticles[i];
+          const randCirc = coreSpin * cp.spin + noiseCore(cp.x * 1.7 + cp.phase, cp.y * 1.7 + t * 0.035) * 0.055;
+          // uniform spin keeps each dot's start angle and adds a shared clockwise turn
+          const circulation = lp(randCirc, cp.ang0 + uniformAng, uniform);
+          const ca = Math.cos(circulation);
+          const sa = Math.sin(circulation);
+          const x0 = (cp.x * ca - cp.y * sa) * cp.rho;
+          const y0 = (cp.x * sa + cp.y * ca) * cp.rho;
+          const z0 = cp.z * cp.rho;
+          const turb = noiseCore(x0 * 2.4 + cp.phase, y0 * 2.4 - t * 0.055) * 0.035 * (1 - uniform);
+          const p3 = project(x0, y0, z0, turb);
+          const dN = (p3.z + 1) * 0.5;
+          const shell = Math.max(0, (cp.rho - 0.58) / 0.42);
+          const tw = 0.45 + 0.55 * Math.sin(cp.tw + t * cp.twSpd + turb * 8);
+          const alpha = cp.bright * tw * brightPulse * (0.12 + dN * 0.34 + shell * 0.36) * (1 - Math.max(0, p3.edge - 1) * 0.8);
+          const sz = cp.size * (0.62 + dN * 0.55 + shell * 0.35);
+          const rch = Math.floor(85 + dN * 115 + shell * 35);
+          ctx.fillStyle = `rgba(${rch}, 255, 255, ${alpha})`;
+          ctx.fillRect(p3.x - sz / 2, p3.y - sz / 2, sz, sz);
+        }
+
+        // surface formations
+        for (let i = 0; i < coreVeins.length; i++) {
+          const v = coreVeins[i];
+          const u = v.u;
+          let x0 = 0;
+          let y0 = 0;
+          let z0 = 0;
+          if (v.kind === 0) {
+            z0 = Math.max(-0.92, Math.min(0.92, v.band * 0.82 + noiseCore(v.band * 2, t * 0.025 + v.phase) * 0.035));
+            const rad = Math.sqrt(Math.max(0, 1 - z0 * z0));
+            const a = u * Math.PI * 2 + v.twist * Math.sin(u * Math.PI * 2 + t * 0.05) + coreSpin * 0.65;
+            x0 = Math.cos(a) * rad;
+            y0 = Math.sin(a) * rad;
+          } else {
+            z0 = (u * 2 - 1) * 0.94;
+            const rad = Math.sqrt(Math.max(0, 1 - z0 * z0));
+            const a = v.band * Math.PI + v.twist * z0 + Math.sin(u * Math.PI * 3 + v.phase + t * 0.04) * 0.18;
+            x0 = Math.cos(a + coreSpin * 0.45) * rad;
+            y0 = Math.sin(a + coreSpin * 0.45) * rad;
+          }
+          const broken = noiseMid(x0 * 5 + v.phase, y0 * 5 - t * 0.06);
+          if (broken < -0.42) continue;
+          const wob = noiseCore(x0 * 3 + v.phase, z0 * 3 + t * 0.04) * 0.028;
+          const p3 = project(x0, y0, z0, wob);
+          const dN = (p3.z + 1) * 0.5;
+          const rim = Math.max(0, Math.min(1, (p3.edge - 0.38) / 0.62));
+          const alpha = v.bright * brightPulse * (0.1 + dN * 0.36 + rim * 0.34) * (0.45 + Math.max(0, broken) * 0.55);
+          const sz = v.size * (0.75 + dN * 0.65 + rim * 0.35);
+          ctx.fillStyle = `rgba(${125 + Math.floor(dN * 95)}, 255, 255, ${alpha})`;
+          ctx.fillRect(p3.x - sz / 2, p3.y - sz / 2, sz, sz);
+        }
       }
 
       ctx.globalCompositeOperation = "source-over";
-      raf = requestAnimationFrame(frame);
+      raf = requestAnimationFrame(draw);
     };
 
-    raf = requestAnimationFrame(frame);
+    raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
   }, [size]);
 
@@ -398,6 +591,7 @@ export const OrbCanvas = ({
       ref={canvasRef}
       className="absolute left-1/2 top-1/2 pointer-events-none"
       style={{ transform: "translate(-50%, -50%)" }}
+      aria-label="Holographic energy ring"
     />
   );
 };
