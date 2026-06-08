@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useMerlin } from "@/store/merlinStore";
-import { MerlinAPI } from "@/api/merlin-api";
+import { MerlinAPI, type ChatResponse } from "@/api/merlin-api";
+import type { SplitWindow } from "@/store/merlinStore";
 
 const SEARCH_KW = ["search", "find", "google", "look up", "vyhledej", "najdi"];
 
@@ -48,6 +49,33 @@ async function tryVoiceCommand(text: string): Promise<boolean> {
     return true;
   }
 
+  // Process view
+  if (/^(show process|show your work|verbose mode)\b/.test(lo)) {
+    st.setShowProcess(true);
+    return true;
+  }
+  if (/^(hide process|stop showing process)\b/.test(lo)) {
+    st.setShowProcess(false);
+    return true;
+  }
+
+  // Split screen
+  if (/(close split screen|single view)/.test(lo)) {
+    st.setSplitScreen(null);
+    return true;
+  }
+
+  // Audio player voice controls
+  const audio = (window as any).__merlinAudio;
+  if (audio && st.audioPlayer) {
+    if (/skip 10 seconds|skip ten seconds/.test(lo)) { audio.seek(10); return true; }
+    if (/go back 10 seconds|back ten seconds/.test(lo)) { audio.seek(-10); return true; }
+    if (/faster/.test(lo)) { audio.setSpeed(0.5); return true; }
+    if (/slower/.test(lo)) { audio.setSpeed(-0.5); return true; }
+    if (/^(pause|play)$/.test(lo)) { audio.toggle(); return true; }
+    if (/stop playback/.test(lo)) { audio.stop(); return true; }
+  }
+
   const map = (window as any).__merlinMap;
   if (map) {
     if (/přibliž|zoom in/.test(lo)) { map.zoomIn(); return true; }
@@ -57,6 +85,78 @@ async function tryVoiceCommand(text: string): Promise<boolean> {
   }
 
   return false;
+}
+
+function handleMerlinResponse(res: ChatResponse) {
+  const st = useMerlin.getState();
+
+  // Browser action
+  if (res.browser_action?.action === "open_url" && res.browser_action.url) {
+    st.setContent({
+      type: "web",
+      data: { url: res.browser_action.url },
+      url: res.browser_action.url,
+      title: res.browser_action.title,
+    });
+  }
+
+  // Process events
+  if (res.show_process) st.setShowProcess(true);
+
+  // Behavior applied
+  if (res.mode === "behavior") {
+    st.triggerBehaviorBadge();
+    if (res.browser_action?.url) {
+      st.setContent({
+        type: (res.browser_action.type as any) || "web",
+        data: { url: res.browser_action.url },
+        url: res.browser_action.url,
+        title: res.browser_action.title,
+      });
+    }
+  }
+
+  // SSH shell opened
+  if (res.open_shell?.host) {
+    st.openSSH(res.open_shell.host);
+  } else if (res.mode === "ssh" && /Interactive terminal/i.test(res.response || "")) {
+    const m = res.response.match(/(\d+\.\d+\.\d+\.\d+)/);
+    if (m) st.openSSH(m[1]);
+  }
+
+  // Split screen
+  if (res.split_screen?.windows?.length) {
+    const windows: SplitWindow[] = res.split_screen.windows.map((w, i) => ({
+      id: w.id || String(i),
+      position: (w.position as any) || "left",
+      content: w.content
+        ? (w.content as any)
+        : { type: (w.type as any) || "web", data: { url: w.url }, url: w.url, title: w.title },
+    }));
+    st.setSplitScreen({ layout: res.split_screen.layout || (windows.length > 2 ? "4" : "2-horizontal"), windows });
+  }
+
+  // Audio playback
+  if (res.play_audio?.url) st.openAudioPlayer(res.play_audio.url, res.play_audio.session_id);
+
+  // Text viewer (white or dark)
+  if (res.show_text) {
+    st.setContent({
+      type: res.show_text.white_bg ? "white" : "text",
+      data: { content: res.show_text.content },
+      title: res.show_text.title,
+    });
+  }
+
+  // File browser
+  if (res.show_files?.items) {
+    st.setContent({ type: "files", data: { items: res.show_files.items }, title: "FILES" });
+  }
+
+  // Log viewer
+  if (res.show_log?.entries) {
+    st.setContent({ type: "log", data: { entries: res.show_log.entries }, title: "LOG" });
+  }
 }
 
 function parseOpenUrl(text: string): { url: string; rest: string } | null {
@@ -150,6 +250,7 @@ export function useMerlinAgent() {
             : res.models_used?.length
               ? `[${res.models_used.join("+")}]`
               : undefined;
+          handleMerlinResponse(res);
         } else {
           await new Promise((r) => setTimeout(r, 700));
           reply = simulateReply(text);
