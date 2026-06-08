@@ -5,6 +5,20 @@ export interface ChatResponse {
   models_used?: string[];
   merged?: boolean;
   errors?: Record<string, string>;
+  mode?: string;
+  show_process?: boolean;
+  browser_action?: { action?: string; url?: string; title?: string; type?: string };
+  split_screen?: {
+    layout?: "2-horizontal" | "2-vertical" | "4";
+    windows?: Array<{ id?: string; position?: string; content?: any; type?: string; url?: string; title?: string }>;
+  };
+  play_audio?: { url: string; session_id?: string };
+  show_text?: { content: string; title?: string; white_bg?: boolean };
+  show_files?: { items: any[] };
+  show_log?: { entries: any[]; type?: string };
+  open_shell?: { host: string };
+  action?: string;
+  tts?: { audio?: string; format?: string };
 }
 
 export const MerlinAPI = {
