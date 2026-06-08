@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { useMerlin } from "@/store/merlinStore";
 
 export const TopBar = () => {
   const [time, setTime] = useState<string | null>(null);
+  const dateTime = useMerlin((s) => s.dateTime);
   useEffect(() => {
     const tick = () =>
       setTime(new Date().toLocaleTimeString("en-GB", { hour12: false }));
@@ -51,6 +53,21 @@ export const TopBar = () => {
       >
         MERLIN // {time ?? "--:--:--"}
       </div>
+      {/* Date / day top-right */}
+      {dateTime && (
+        <div
+          className="font-orbitron absolute"
+          style={{
+            top: 14,
+            right: 56,
+            fontSize: 9,
+            letterSpacing: "2px",
+            color: "rgba(0,200,255,0.5)",
+          }}
+        >
+          {dateTime}
+        </div>
+      )}
     </div>
   );
 };
