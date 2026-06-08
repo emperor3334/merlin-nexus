@@ -1,11 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useMerlin } from "@/store/merlinStore";
-import { MapView } from "./MapView";
-import { VideoView } from "./VideoView";
-import { ChartView } from "./ChartView";
-import { SearchView } from "./SearchView";
-import { TextView } from "./TextView";
-import { WebContent } from "@/components/ContentWindow/WebContent";
+import { ContentDisplay } from "./ContentDisplay";
 import { useEffect } from "react";
 
 export const ContentPanel = () => {
@@ -45,12 +40,7 @@ export const ContentPanel = () => {
               maskComposite: "intersect",
             }}
           >
-            {active.type === "map" && <MapView data={active.data} />}
-            {active.type === "video" && <VideoView data={active.data} />}
-            {active.type === "chart" && <ChartView data={active.data} />}
-            {active.type === "search" && <SearchView data={active.data} />}
-            {active.type === "text" && <TextView data={active.data} />}
-            {active.type === "web" && <WebContent url={active.data?.url || active.url || ""} />}
+            <ContentDisplay content={active} />
           </div>
 
           {label && (
