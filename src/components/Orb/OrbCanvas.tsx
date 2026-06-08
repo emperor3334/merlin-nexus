@@ -383,9 +383,9 @@ export const OrbCanvas = ({
           Math.min(1, (gapOuter * 1.04 - rr) / (gap * 0.3));
         const density = 0.45 + 0.55 * Math.max(0, noiseAura(x * 0.012 + t * 0.02, y * 0.012 - p.seed * 0.01));
         // brightened to match the sphere dots
-        const alpha = (p.bright + 0.22) * tw * density * brightPulse * Math.max(0, edgeFade) * (0.62 + p.layer * 0.1);
+        const alpha = (p.bright + 0.5) * tw * density * brightPulse * Math.max(0, edgeFade) * (0.85 + p.layer * 0.12);
         ctx.fillStyle = `rgba(${130 + p.layer * 22}, 255, 255, ${alpha})`;
-        const sz = p.size * (0.5 + p.layer * 0.1); // smaller than sphere dots
+        const sz = p.size * (0.62 + p.layer * 0.12); // smaller than sphere dots
         ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
       }
 
@@ -435,8 +435,8 @@ export const OrbCanvas = ({
           const x = cx + Math.cos(a) * rr;
           const y = cy + Math.sin(a) * rr;
           const fade = 0.35 + Math.max(0, broken) * 0.75;
-          ctx.fillStyle = `rgba(190, 255, 255, ${0.16 * fade * brightPulse})`;
-          const sz = 0.5 + fade * 0.55;
+          ctx.fillStyle = `rgba(210, 255, 255, ${0.34 * fade * brightPulse})`;
+          const sz = 0.6 + fade * 0.6;
           ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
         }
       }
@@ -447,7 +447,7 @@ export const OrbCanvas = ({
         const rb = ribbons[ri];
         const rbPhase = rb.phase + t * rb.phaseSpd;
         const zAlpha = 0.25 + rb.z * 0.85;
-        const baseAlpha = 0.8 * zAlpha * brightPulse;
+        const baseAlpha = 1.5 * zAlpha * brightPulse;
         const px = cx + (rb.z - 0.5) * 6;
         const py = cy + (rb.z - 0.5) * 3;
 
@@ -466,7 +466,7 @@ export const OrbCanvas = ({
           const tw = 0.7 + 0.3 * Math.sin(a * 7 + t * 2 + rb.seed);
           const alpha = baseAlpha * tw;
           ctx.fillStyle = `rgba(235, 255, 255, ${alpha})`;
-          const sz = rb.thickness;
+          const sz = rb.thickness * 1.25;
           ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
         }
       }
@@ -480,9 +480,9 @@ export const OrbCanvas = ({
         const x = cx + (p.z - 0.5) * 6 + Math.cos(a) * rr;
         const y = cy + (p.z - 0.5) * 3 + Math.sin(a) * rr;
         const tw = 0.5 + 0.5 * Math.sin(p.tw + t * p.twSpd);
-        const a2 = p.bright * tw * brightPulse * (0.4 + p.z * 0.6);
+        const a2 = p.bright * tw * brightPulse * (0.4 + p.z * 0.6) * 1.8;
         ctx.fillStyle = `rgba(190, 255, 255, ${a2})`;
-        const sz = p.size;
+        const sz = p.size * 1.2;
         ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
       }
 
