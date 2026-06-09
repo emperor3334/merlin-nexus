@@ -121,51 +121,9 @@ export const Orb = ({ size = 160 }: { size?: number }) => {
           <OrbCanvas size={size} state={orbState} level={audioLevel} />
         )}
 
-        {/* THE RING (small orb only) */}
+        {/* Small orb: lightweight version of the center piece */}
         {!showLabel && (
-        <motion.div
-          className="absolute left-1/2 top-1/2"
-          style={{
-            width: size,
-            height: size,
-            borderRadius: "50%",
-            border: `${Math.max(2, size * 0.018)}px solid ${ringColor}`,
-            background: "transparent",
-            transform: "translate(-50%, -50%)",
-          }}
-          animate={{
-            boxShadow: [
-              `0 0 ${20 * glowSpread}px ${ringColor}, 0 0 ${40 * glowSpread}px rgba(0,180,255,0.7), 0 0 ${80 * glowSpread}px rgba(0,140,255,0.4), 0 0 ${120 * glowSpread}px rgba(0,100,255,0.2), inset 0 0 20px rgba(0,180,255,0.10)`,
-              `0 0 ${28 * glowSpread}px ${ringColor}, 0 0 ${56 * glowSpread}px rgba(0,180,255,0.8), 0 0 ${100 * glowSpread}px rgba(0,140,255,0.45), 0 0 ${140 * glowSpread}px rgba(0,100,255,0.22), inset 0 0 24px rgba(0,180,255,0.14)`,
-              `0 0 ${20 * glowSpread}px ${ringColor}, 0 0 ${40 * glowSpread}px rgba(0,180,255,0.7), 0 0 ${80 * glowSpread}px rgba(0,140,255,0.4), 0 0 ${120 * glowSpread}px rgba(0,100,255,0.2), inset 0 0 20px rgba(0,180,255,0.10)`,
-            ],
-          }}
-          transition={{
-            duration: orbState === "thinking" ? 1.2 : orbState === "speaking" ? 0.6 : 3,
-            ease: "easeInOut",
-            repeat: Infinity,
-          }}
-        />
-        )}
-
-        {/* Rotating arc for thinking state (small orb only) */}
-        {!showLabel && orbState === "thinking" && (
-          <motion.div
-            className="absolute left-1/2 top-1/2 pointer-events-none"
-            style={{
-              width: size + 14,
-              height: size + 14,
-              borderRadius: "50%",
-              border: `2px solid transparent`,
-              borderTopColor: "#80e0ff",
-              borderRightColor: "rgba(128,224,255,0.6)",
-              marginLeft: -(size + 14) / 2,
-              marginTop: -(size + 14) / 2,
-              boxShadow: "0 0 18px rgba(128,224,255,0.6)",
-            }}
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, ease: "linear", repeat: Infinity }}
-          />
+          <OrbCanvas size={size} state={orbState} level={audioLevel} lite />
         )}
 
         {/* Center text for the small orb */}
