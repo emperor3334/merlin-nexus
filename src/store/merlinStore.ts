@@ -102,6 +102,7 @@ interface MerlinState {
   setOrbState: (s: OrbState) => void;
   setContent: (c: ActiveContent) => void;
   clearContent: () => void;
+  resetToHome: () => void;
   addMessage: (m: Message) => void;
   setTyping: (t: boolean) => void;
   setMicActive: (a: boolean) => void;
