@@ -115,10 +115,12 @@ function Index() {
         style={
           hasContent
             ? { right: 28, bottom: 150 }
-            : { left: "50%", top: "50%", transform: "translate(-50%, -50%)" }
+            : { left: "50%", top: "50%" }
         }
       >
-        <Orb size={hasContent ? 60 : 160} />
+        <div style={hasContent ? undefined : { transform: "translate(-50%, -50%)" }}>
+          <Orb size={hasContent ? 60 : 160} />
+        </div>
       </motion.div>
 
       <FloatingResponse />
