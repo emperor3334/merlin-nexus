@@ -84,21 +84,6 @@ export const Orb = ({ size = 160 }: { size?: number }) => {
 
   const showLabel = size >= 110;
 
-  // Glow strength reacts to state + audio
-  const baseGlow =
-    orbState === "listening" || orbState === "speaking"
-      ? 1 + audioLevel * 0.5
-      : 1;
-
-  const ringColor =
-    orbState === "listening"
-      ? "#40d0ff"
-      : orbState === "speaking"
-      ? "#00ccff"
-      : "#00b4ff";
-
-  const glowSpread = baseGlow;
-
   return (
     <motion.div
       initial={{ scale: 0, opacity: 0 }}
