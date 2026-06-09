@@ -40,10 +40,12 @@ export const OrbCanvas = ({
   size,
   state,
   level,
+  lite = false,
 }: {
   size: number;
   state: string;
   level: number;
+  lite?: boolean;
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stateRef = useRef(state);
@@ -84,7 +86,7 @@ export const OrbCanvas = ({
       thickness: number;
     };
     const minDim = Math.min(width, height);
-    const ribbonCount = Math.round((minDim < 500 ? 88 : minDim < 900 ? 112 : 136) * 0.9);
+    const ribbonCount = Math.round((minDim < 500 ? 88 : minDim < 900 ? 112 : 136) * 0.9 * (lite ? 0.25 : 1));
     const ribbons: Ribbon[] = new Array(ribbonCount);
     for (let i = 0; i < ribbonCount; i++) {
       ribbons[i] = {
@@ -110,7 +112,7 @@ export const OrbCanvas = ({
       z: number;
     };
     const area = width * height;
-    const hazeCount = Math.max(5200, Math.min(13000, Math.floor(area / 150)));
+    const hazeCount = lite ? 700 : Math.max(5200, Math.min(13000, Math.floor(area / 150)));
     const haze: Haze[] = new Array(hazeCount);
     for (let i = 0; i < hazeCount; i++) {
       const band = Math.random() * 2 - 1;
@@ -140,7 +142,7 @@ export const OrbCanvas = ({
       bright: number;
       ang0: number;
     };
-    const coreCount = 11000;
+    const coreCount = lite ? 2200 : 11000;
     const coreParticles: CoreP[] = new Array(coreCount);
     for (let i = 0; i < coreCount; i++) {
       const shellBias = Math.random() < 0.62;
@@ -172,7 +174,7 @@ export const OrbCanvas = ({
       bright: number;
       size: number;
     };
-    const veinCount = 7500;
+    const veinCount = lite ? 1400 : 7500;
     const coreVeins: CoreVein[] = new Array(veinCount);
     for (let i = 0; i < veinCount; i++) {
       coreVeins[i] = {
@@ -200,7 +202,7 @@ export const OrbCanvas = ({
       bright: number;
       seed: number;
     };
-    const auraCount = Math.max(3600, Math.min(7500, Math.floor(area / 300)));
+    const auraCount = lite ? 900 : Math.max(3600, Math.min(7500, Math.floor(area / 300)));
     const auraParticles: AuraP[] = new Array(auraCount);
     for (let i = 0; i < auraCount; i++) {
       const layer = Math.floor(Math.random() * 4);
@@ -231,7 +233,7 @@ export const OrbCanvas = ({
       bright: number;
       dots: number;
     };
-    const currents: Current[] = new Array(90);
+    const currents: Current[] = new Array(lite ? 22 : 90);
     for (let i = 0; i < currents.length; i++) {
       currents[i] = {
         a0: Math.random() * Math.PI * 2,
