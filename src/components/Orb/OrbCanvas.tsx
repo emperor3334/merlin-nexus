@@ -40,10 +40,12 @@ export const OrbCanvas = ({
   size,
   state,
   level,
+  lite = false,
 }: {
   size: number;
   state: string;
   level: number;
+  lite?: boolean;
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stateRef = useRef(state);
@@ -84,7 +86,7 @@ export const OrbCanvas = ({
       thickness: number;
     };
     const minDim = Math.min(width, height);
-    const ribbonCount = Math.round((minDim < 500 ? 88 : minDim < 900 ? 112 : 136) * 0.9);
+    const ribbonCount = Math.round((minDim < 500 ? 88 : minDim < 900 ? 112 : 136) * 0.9 * (lite ? 0.25 : 1));
     const ribbons: Ribbon[] = new Array(ribbonCount);
     for (let i = 0; i < ribbonCount; i++) {
       ribbons[i] = {
@@ -110,7 +112,7 @@ export const OrbCanvas = ({
       z: number;
     };
     const area = width * height;
-    const hazeCount = Math.max(5200, Math.min(13000, Math.floor(area / 150)));
+    const hazeCount = lite ? 700 : Math.max(5200, Math.min(13000, Math.floor(area / 150)));
     const haze: Haze[] = new Array(hazeCount);
     for (let i = 0; i < hazeCount; i++) {
       const band = Math.random() * 2 - 1;
@@ -140,7 +142,7 @@ export const OrbCanvas = ({
       bright: number;
       ang0: number;
     };
-    const coreCount = 11000;
+    const coreCount = lite ? 2200 : 11000;
     const coreParticles: CoreP[] = new Array(coreCount);
     for (let i = 0; i < coreCount; i++) {
       const shellBias = Math.random() < 0.62;
@@ -172,7 +174,7 @@ export const OrbCanvas = ({
       bright: number;
       size: number;
     };
-    const veinCount = 7500;
+    const veinCount = lite ? 1400 : 7500;
     const coreVeins: CoreVein[] = new Array(veinCount);
     for (let i = 0; i < veinCount; i++) {
       coreVeins[i] = {
@@ -200,7 +202,7 @@ export const OrbCanvas = ({
       bright: number;
       seed: number;
     };
-    const auraCount = Math.max(3600, Math.min(7500, Math.floor(area / 300)));
+    const auraCount = lite ? 900 : Math.max(3600, Math.min(7500, Math.floor(area / 300)));
     const auraParticles: AuraP[] = new Array(auraCount);
     for (let i = 0; i < auraCount; i++) {
       const layer = Math.floor(Math.random() * 4);
@@ -231,7 +233,7 @@ export const OrbCanvas = ({
       bright: number;
       dots: number;
     };
-    const currents: Current[] = new Array(90);
+    const currents: Current[] = new Array(lite ? 22 : 90);
     for (let i = 0; i < currents.length; i++) {
       currents[i] = {
         a0: Math.random() * Math.PI * 2,
@@ -384,7 +386,7 @@ export const OrbCanvas = ({
         const density = 0.45 + 0.55 * Math.max(0, noiseAura(x * 0.012 + t * 0.02, y * 0.012 - p.seed * 0.01));
         // brightened to match the sphere dots
         const alpha = (p.bright + 0.5) * tw * density * brightPulse * Math.max(0, edgeFade) * (0.85 + p.layer * 0.12);
-        ctx.fillStyle = `rgba(${130 + p.layer * 22}, 255, 255, ${alpha})`;
+        ctx.fillStyle = `rgba(${90 + p.layer * 20}, 222, 255, ${alpha})`;
         const sz = p.size * (0.62 + p.layer * 0.12); // smaller than sphere dots
         ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
       }
@@ -404,7 +406,7 @@ export const OrbCanvas = ({
           const x = cx + Math.cos(a) * rr + (c.layer - 1.5) * 2.2;
           const y = cy + Math.sin(a) * rr - (c.layer - 1.5) * 0.8;
           const alpha = (c.bright + 0.12) * fade * brightPulse * 0.6;
-          ctx.fillStyle = `rgba(160, 255, 255, ${alpha})`;
+          ctx.fillStyle = `rgba(120, 225, 255, ${alpha})`;
           const sz = 0.4 + c.layer * 0.08 + fade * 0.35;
           ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
         }
@@ -435,7 +437,7 @@ export const OrbCanvas = ({
           const x = cx + Math.cos(a) * rr;
           const y = cy + Math.sin(a) * rr;
           const fade = 0.35 + Math.max(0, broken) * 0.75;
-          ctx.fillStyle = `rgba(210, 255, 255, ${0.34 * fade * brightPulse})`;
+          ctx.fillStyle = `rgba(170, 232, 255, ${0.34 * fade * brightPulse})`;
           const sz = 0.6 + fade * 0.6;
           ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
         }
@@ -465,7 +467,7 @@ export const OrbCanvas = ({
           const y = py + Math.sin(a) * rr;
           const tw = 0.7 + 0.3 * Math.sin(a * 7 + t * 2 + rb.seed);
           const alpha = baseAlpha * tw;
-          ctx.fillStyle = `rgba(235, 255, 255, ${alpha})`;
+          ctx.fillStyle = `rgba(195, 236, 255, ${alpha})`;
           const sz = rb.thickness * 1.25;
           ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
         }
@@ -481,7 +483,7 @@ export const OrbCanvas = ({
         const y = cy + (p.z - 0.5) * 3 + Math.sin(a) * rr;
         const tw = 0.5 + 0.5 * Math.sin(p.tw + t * p.twSpd);
         const a2 = p.bright * tw * brightPulse * (0.4 + p.z * 0.6) * 1.8;
-        ctx.fillStyle = `rgba(190, 255, 255, ${a2})`;
+        ctx.fillStyle = `rgba(150, 226, 255, ${a2})`;
         const sz = p.size * 1.2;
         ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
       }
@@ -584,7 +586,7 @@ export const OrbCanvas = ({
 
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [size]);
+  }, [size, lite]);
 
   return (
     <canvas
