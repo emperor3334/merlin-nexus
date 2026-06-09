@@ -82,6 +82,15 @@ function Index() {
 
   // Session heartbeat
   useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") useMerlin.getState().resetToHome();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Session heartbeat
+  useEffect(() => {
     if (!sessionActive) return;
     const id = setInterval(async () => {
       try {
