@@ -586,7 +586,7 @@ export const OrbCanvas = ({
 
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [size]);
+  }, [size, lite]);
 
   return (
     <canvas
