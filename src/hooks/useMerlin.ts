@@ -40,6 +40,12 @@ async function tryVoiceCommand(text: string): Promise<boolean> {
   const lo = text.toLowerCase().trim();
   const st = useMerlin.getState();
 
+  // Return to the main Merlin page
+  if (/^(main page|home|home page|go home|back to main|hlavní stránka|hlavni stranka|domů|domu|zpět na hlavní)/.test(lo)) {
+    st.resetToHome();
+    return true;
+  }
+
   if (/^(zavři|skryj|zavri|odejdi)/.test(lo)) {
     st.clearContent();
     return true;

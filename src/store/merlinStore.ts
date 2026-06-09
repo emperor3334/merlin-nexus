@@ -102,6 +102,7 @@ interface MerlinState {
   setOrbState: (s: OrbState) => void;
   setContent: (c: ActiveContent) => void;
   clearContent: () => void;
+  resetToHome: () => void;
   addMessage: (m: Message) => void;
   setTyping: (t: boolean) => void;
   setMicActive: (a: boolean) => void;
@@ -163,6 +164,15 @@ export const useMerlin = create<MerlinState>((set) => ({
   setOrbState: (s) => set({ orbState: s }),
   setContent: (c) => set({ activeContent: c }),
   clearContent: () => set({ activeContent: { type: null } }),
+  resetToHome: () =>
+    set({
+      activeContent: { type: null },
+      splitScreen: null,
+      showProcess: false,
+      sshHost: null,
+      sshLines: [],
+      audioPlayer: null,
+    }),
   addMessage: (m) => set((st) => ({ messages: [...st.messages, m] })),
   setTyping: (t) => set({ isTyping: t }),
   setMicActive: (a) => set({ micActive: a }),

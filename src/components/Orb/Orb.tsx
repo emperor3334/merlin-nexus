@@ -155,12 +155,13 @@ export const Orb = ({ size = 160 }: { size?: number }) => {
 
       {showLabel && (
         <div
-          className="font-orbitron mt-4"
+          className="font-orbitron"
           style={{
             color: "rgba(255,255,255,0.55)",
             fontSize: 10,
             letterSpacing: "8px",
             fontWeight: 400,
+            marginTop: size * 0.6,
           }}
         >
           {STATE_LABEL[orbState]}

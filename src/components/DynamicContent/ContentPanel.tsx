@@ -5,16 +5,16 @@ import { useEffect } from "react";
 
 export const ContentPanel = () => {
   const active = useMerlin((s) => s.activeContent);
-  const clearContent = useMerlin((s) => s.clearContent);
+  const resetToHome = useMerlin((s) => s.resetToHome);
 
   useEffect(() => {
     if (!active.type) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") clearContent();
+      if (e.key === "Escape") resetToHome();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [active.type, clearContent]);
+  }, [active.type, resetToHome]);
 
   const label = active.title || (active.url ? new URL(active.url.startsWith("http") ? active.url : `https://${active.url}`).hostname.replace(/^www\./, "") : "");
 

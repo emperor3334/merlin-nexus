@@ -82,6 +82,15 @@ function Index() {
 
   // Session heartbeat
   useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") useMerlin.getState().resetToHome();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Session heartbeat
+  useEffect(() => {
     if (!sessionActive) return;
     const id = setInterval(async () => {
       try {
@@ -115,10 +124,12 @@ function Index() {
         style={
           hasContent
             ? { right: 28, bottom: 150 }
-            : { left: "50%", top: "50%", transform: "translate(-50%, -50%)" }
+            : { left: "50%", top: "50%" }
         }
       >
-        <Orb size={hasContent ? 60 : 160} />
+        <div style={hasContent ? undefined : { transform: "translate(-50%, -50%)" }}>
+          <Orb size={hasContent ? 60 : 160} />
+        </div>
       </motion.div>
 
       <FloatingResponse />
