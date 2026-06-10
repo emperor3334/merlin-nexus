@@ -350,7 +350,9 @@ export const OrbCanvas = ({
       // breathing pulse
       const pulse = Math.sin((t / 4) * Math.PI * 2);
       const breathe = 1 + pulse * 0.015;
-      const brightPulse = 1 + pulse * 0.08;
+      // overall brightness boost for the center piece (lighter look)
+      const LIGHT = lite ? 1 : 1.45;
+      const brightPulse = (1 + pulse * 0.08) * LIGHT;
       // speaking adds an inflate/deflate pulse on top of breathing
       const inflate = 1 + speakLevel * 0.26 + speakLevel * 0.12 * Math.sin(t * 11);
       const waveScale = breathe * waveRange * inflate;
