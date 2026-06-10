@@ -161,7 +161,7 @@ export const Orb = ({ size = 160 }: { size?: number }) => {
             fontSize: 10,
             letterSpacing: "8px",
             fontWeight: 400,
-            marginTop: size * 0.95,
+            marginTop: size * 1.15,
           }}
         >
           {STATE_LABEL[orbState]}
