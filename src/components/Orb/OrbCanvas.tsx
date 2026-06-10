@@ -86,7 +86,7 @@ export const OrbCanvas = ({
       thickness: number;
     };
     const minDim = Math.min(width, height);
-    const ribbonCount = Math.round((minDim < 500 ? 88 : minDim < 900 ? 112 : 136) * 0.81 * (lite ? 0.25 : 1));
+    const ribbonCount = Math.round((minDim < 500 ? 88 : minDim < 900 ? 112 : 136) * 0.729 * (lite ? 0.25 : 1));
     const ribbons: Ribbon[] = new Array(ribbonCount);
     for (let i = 0; i < ribbonCount; i++) {
       ribbons[i] = {
