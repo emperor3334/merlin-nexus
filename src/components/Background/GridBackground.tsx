@@ -4,7 +4,7 @@ export const GridBackground = () => (
     style={{
       zIndex: 1,
       backgroundImage:
-        "linear-gradient(rgba(30,120,255,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(30,120,255,0.18) 1px, transparent 1px)",
+        "linear-gradient(rgba(30,120,255,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(30,120,255,0.10) 1px, transparent 1px)",
       backgroundSize: "45px 45px",
     }}
   />
