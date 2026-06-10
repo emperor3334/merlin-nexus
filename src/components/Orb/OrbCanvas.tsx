@@ -370,26 +370,13 @@ export const OrbCanvas = ({
       ctx.clearRect(0, 0, width, height);
       ctx.globalCompositeOperation = "lighter";
 
-      // 2) Atmospheric haze (darker blue base so waves stand out)
-      {
-        const g = ctx.createRadialGradient(cx, cy, R * 0.15, cx, cy, R * 2.3);
-        g.addColorStop(0, `rgba(0, 90, 120, ${0.03 * brightPulse})`);
-        g.addColorStop(0.35, `rgba(0, 65, 95, ${0.014 * brightPulse})`);
-        g.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, width, height);
-      }
+      // 2+3+6) cached full-canvas gradient layers (haze base, aura fog base, ring bloom)
+      if (bgFrame % BG_REFRESH === 0) renderBackground(R, brightPulse);
+      bgFrame++;
+      ctx.drawImage(bg, 0, 0, width, height);
 
-      // 3) Aura fog (darkened)
+      // 3b) Aura fog blobs
       {
-        const ga = ctx.createRadialGradient(cx, cy, coreR * 0.25, cx, cy, R * 1.04);
-        ga.addColorStop(0, `rgba(0, 120, 150, ${0.035 * brightPulse})`);
-        ga.addColorStop(0.32, `rgba(0, 95, 120, ${0.014 * brightPulse})`);
-        ga.addColorStop(0.66, `rgba(0, 70, 95, ${0.007 * brightPulse})`);
-        ga.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = ga;
-        ctx.fillRect(0, 0, width, height);
-
         for (let i = 0; i < 16; i++) {
           const h = Math.sin(i * 91.37) * 43758.5453;
           const f = h - Math.floor(h);
@@ -458,17 +445,6 @@ export const OrbCanvas = ({
           const sz = 0.4 + c.layer * 0.08 + fade * 0.35;
           ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
         }
-      }
-
-      // 6) Outer ring bloom (darkened under-wave blue)
-      {
-        const g = ctx.createRadialGradient(cx, cy, R * 0.7, cx, cy, R * 1.4);
-        g.addColorStop(0, "rgba(0,90,110,0)");
-        g.addColorStop(0.55, `rgba(0, 130, 155, ${0.05 * brightPulse})`);
-        g.addColorStop(0.78, `rgba(0, 150, 170, ${0.028 * brightPulse})`);
-        g.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, width, height);
       }
 
       // 7) Broken filament wave dots (bright, small)
