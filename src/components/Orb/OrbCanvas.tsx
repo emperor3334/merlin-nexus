@@ -361,6 +361,17 @@ export const OrbCanvas = ({
       const gapOuter = R * 0.92;
       const gap = gapOuter - gapInner;
 
+      // speaking: jagged, voice-reactive radial waveform on the outer waves only
+      const liveJitter = 0.6 + 0.4 * Math.max(0, Math.min(1, lvl));
+      const speakSpike = (a: number) => {
+        if (speakLevel < 0.001) return 0;
+        const s =
+          Math.sin(a * 9 + t * 9) * 0.55 +
+          Math.sin(a * 17 - t * 13) * 0.32 +
+          noiseMid(Math.cos(a) * 6, Math.sin(a) * 6 - t * 0.5) * 0.85;
+        return s * speakLevel * liveJitter;
+      };
+
       // accumulate rotations
       rotation += dt * (Math.PI / 90) * 12 * waveSpeed;
       coreSpin += dt * ((Math.PI * 2) / 68);
@@ -457,7 +468,7 @@ export const OrbCanvas = ({
           const d = deformGlobal(a + phase, t);
           const broken = noiseMid(Math.cos(a) * 4 + si, Math.sin(a) * 4 - t * 0.08);
           if (broken < -0.35) continue;
-          const rr = R + d * R * 0.08 + rOff + broken * R * 0.006;
+          const rr = R + d * R * 0.08 + rOff + broken * R * 0.006 + speakSpike(a) * R * 0.1;
           const x = cx + Math.cos(a) * rr;
           const y = cy + Math.sin(a) * rr;
           const fade = 0.35 + Math.max(0, broken) * 0.75;
@@ -486,7 +497,7 @@ export const OrbCanvas = ({
               Math.sin(a) * 3 - t * 0.4 + rb.seed
             ) * rb.microAmp;
           const rr =
-            R * (1 + rb.rOffset) + dG * R * 0.075 * rb.amp + micro * R * 8;
+            R * (1 + rb.rOffset) + dG * R * 0.075 * rb.amp + micro * R * 8 + speakSpike(a) * R * 0.13;
           const x = px + Math.cos(a) * rr;
           const y = py + Math.sin(a) * rr;
           const tw = 0.7 + 0.3 * Math.sin(a * 7 + t * 2 + rb.seed);
@@ -502,7 +513,7 @@ export const OrbCanvas = ({
         const p = haze[i];
         const a = p.a0 + rotation + p.drift * t;
         const dG = deformGlobal(a, t);
-        const rr = R + dG * R * 0.06 + p.rOff * R;
+        const rr = R + dG * R * 0.06 + p.rOff * R + speakSpike(a) * R * 0.08;
         const x = cx + (p.z - 0.5) * 6 + Math.cos(a) * rr;
         const y = cy + (p.z - 0.5) * 3 + Math.sin(a) * rr;
         const tw = 0.5 + 0.5 * Math.sin(p.tw + t * p.twSpd);
