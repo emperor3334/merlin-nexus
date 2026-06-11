@@ -361,6 +361,17 @@ export const OrbCanvas = ({
       const gapOuter = R * 0.92;
       const gap = gapOuter - gapInner;
 
+      // speaking: jagged, voice-reactive radial waveform on the outer waves only
+      const liveJitter = 0.6 + 0.4 * Math.max(0, Math.min(1, lvl));
+      const speakSpike = (a: number) => {
+        if (speakLevel < 0.001) return 0;
+        const s =
+          Math.sin(a * 9 + t * 9) * 0.55 +
+          Math.sin(a * 17 - t * 13) * 0.32 +
+          noiseMid(Math.cos(a) * 6, Math.sin(a) * 6 - t * 0.5) * 0.85;
+        return s * speakLevel * liveJitter;
+      };
+
       // accumulate rotations
       rotation += dt * (Math.PI / 90) * 12 * waveSpeed;
       coreSpin += dt * ((Math.PI * 2) / 68);
