@@ -322,6 +322,18 @@ export const OrbCanvas = ({
       return a * 0.7 + b * 0.3;
     };
 
+    /* voice-reactive membrane: a jagged, rippling waveform wrapped around the
+       ring. Amplitude is driven by speakLevel, so at rest (speakLevel≈0) it
+       contributes nothing and the orb looks identical to before. */
+    const speakWave = (angle: number, t: number) => {
+      // several harmonics give an irregular, spiky outline (not a smooth circle)
+      const h1 = Math.sin(angle * 3 - t * 2.1);
+      const h2 = Math.sin(angle * 7 + t * 3.3) * 0.55;
+      const h3 = Math.sin(angle * 13 - t * 4.7) * 0.3;
+      const turb = noiseMid(Math.cos(angle) * 4.5, Math.sin(angle) * 4.5 - t * 0.9) * 0.7;
+      return h1 + h2 + h3 + turb;
+    };
+
     const draw = (now: number) => {
       const t = (now - start) / 1000;
       const dt = Math.min(0.05, (now - last) / 1000);
@@ -357,6 +369,9 @@ export const OrbCanvas = ({
       const inflate = 1 + speakLevel * 0.26 + speakLevel * 0.12 * Math.sin(t * 11);
       const waveScale = breathe * waveRange * inflate;
       const R = baseR * waveScale;
+
+      // fast tremble amount for the speaking membrane (modulated by voice)
+      const speakAmp = speakLevel * (0.85 + 0.35 * Math.sin(t * 10.5));
 
       const coreR = baseR * 0.45 * breathe; // sphere unaffected by wave range
       const gapInner = coreR * 1.05;
@@ -488,7 +503,10 @@ export const OrbCanvas = ({
               Math.sin(a) * 3 - t * 0.4 + rb.seed
             ) * rb.microAmp;
           const rr =
-            R * (1 + rb.rOffset) + dG * R * 0.075 * rb.amp + micro * R * 8;
+            R * (1 + rb.rOffset) +
+            dG * R * 0.075 * rb.amp +
+            micro * R * 8 +
+            speakAmp * speakWave(a + rb.seed * 0.01, t) * R * 0.11 * rb.amp;
           const x = px + Math.cos(a) * rr;
           const y = py + Math.sin(a) * rr;
           const tw = 0.7 + 0.3 * Math.sin(a * 7 + t * 2 + rb.seed);
@@ -504,7 +522,8 @@ export const OrbCanvas = ({
         const p = haze[i];
         const a = p.a0 + rotation + p.drift * t;
         const dG = deformGlobal(a, t);
-        const rr = R + dG * R * 0.06 + p.rOff * R;
+        const rr =
+          R + dG * R * 0.06 + p.rOff * R + speakAmp * speakWave(a, t) * R * 0.08;
         const x = cx + (p.z - 0.5) * 6 + Math.cos(a) * rr;
         const y = cy + (p.z - 0.5) * 3 + Math.sin(a) * rr;
         const tw = 0.5 + 0.5 * Math.sin(p.tw + t * p.twSpd);
